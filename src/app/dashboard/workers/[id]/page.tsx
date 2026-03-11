@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { HiArrowLeft, HiTrash, HiSave, HiUser, HiIdentification, HiCash, HiPhone, HiMap, HiGlobeAlt } from "react-icons/hi";
-import { getWorker, addWorker, updateWorker, deleteWorker } from "@/lib/services/workers";
+import { HiArrowLeft, HiTrash, HiSave, HiUser, HiIdentification, HiCash, HiPhone, HiMap, HiGlobeAlt, HiKey, HiShieldCheck } from "react-icons/hi";
+import { getWorker, addWorker, updateWorker, deleteWorker, getWorkers } from "@/lib/services/workers";
+import { setStaffLoginCredentials, setStaffManager } from "@/lib/services/auth-role";
+import { Worker } from "@/lib/types";
 import { use } from "react";
 
 export default function WorkerDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +17,15 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
 
     const [loading, setLoading] = useState(!isNew);
     const [saving, setSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState<'basic' | 'personal' | 'bank'>('basic');
+    const [activeTab, setActiveTab] = useState<'basic' | 'personal' | 'bank' | 'login'>('basic');
+    const [allWorkers, setAllWorkers] = useState<Worker[]>([]);
+
+    // Login & Role fields
+    const [hierarchyRole, setHierarchyRole] = useState<'team_member' | 'manager'>('team_member');
+    const [managerId, setManagerId] = useState<string>('');
+    const [loginEmail, setLoginEmail] = useState('');
+    const [loginPin, setLoginPin] = useState('');
+    const [savingCredentials, setSavingCredentials] = useState(false);
 
     const [worker, setWorker] = useState({
         name: "",
@@ -43,7 +53,17 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
         if (!isNew) {
             loadWorker();
         }
+        loadAllWorkers();
     }, [isNew, id]);
+
+    async function loadAllWorkers() {
+        try {
+            const data = await getWorkers();
+            setAllWorkers(data.filter(w => w.status === 'active'));
+        } catch (err) {
+            console.error('Error loading workers list:', err);
+        }
+    }
 
     async function loadWorker() {
         setLoading(true);
@@ -71,6 +91,10 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
                     dob: data.dob || "",
                     photo_url: data.photo_url || "",
                 });
+                setHierarchyRole(data.hierarchy_role === 'manager' ? 'manager' : 'team_member');
+                setManagerId(data.manager_id || '');
+                setLoginEmail(data.login_email || '');
+                setLoginPin(data.login_pin || '');
             } else {
                 router.push("/dashboard/workers");
             }
@@ -152,25 +176,33 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-[1.5rem] w-fit shadow-inner">
+            <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-[1.5rem] overflow-x-auto no-scrollbar shadow-inner">
                 <button
                     onClick={() => setActiveTab('basic')}
-                    className={`px-6 py-2.5 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${activeTab === 'basic' ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-4 md:px-6 py-2.5 rounded-xl font-black text-xs md:text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'basic' ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <HiUser /> Basic & Pay
                 </button>
                 <button
                     onClick={() => setActiveTab('personal')}
-                    className={`px-6 py-2.5 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${activeTab === 'personal' ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-4 md:px-6 py-2.5 rounded-xl font-black text-xs md:text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'personal' ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <HiIdentification /> Personal
                 </button>
                 <button
                     onClick={() => setActiveTab('bank')}
-                    className={`px-6 py-2.5 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${activeTab === 'bank' ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-4 md:px-6 py-2.5 rounded-xl font-black text-xs md:text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'bank' ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <HiCash /> Bank Details
+                    <HiCash /> Bank
                 </button>
+                {!isNew && (
+                    <button
+                        onClick={() => setActiveTab('login')}
+                        className={`px-4 md:px-6 py-2.5 rounded-xl font-black text-xs md:text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'login' ? 'bg-white text-orange-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <HiKey /> Login & Role
+                    </button>
+                )}
             </div>
 
             <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border-2 border-slate-50">
@@ -430,6 +462,104 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
                                 Note: These details are used only for generating monthly payroll reports and bank transfer slips.
                             </p>
                         </div>
+                    </div>
+                )}
+
+                {activeTab === 'login' && !isNew && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div>
+                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                                <HiShieldCheck className="text-orange-600" /> Hierarchy & Role
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Role in Company</label>
+                                    <select
+                                        value={hierarchyRole}
+                                        onChange={(e) => setHierarchyRole(e.target.value as any)}
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all appearance-none"
+                                    >
+                                        <option value="team_member">🔧 Team Member (Worker/Mistri)</option>
+                                        <option value="manager">📋 Manager (Supervisor/Mukadam)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Reports To (Primary Manager)</label>
+                                    <select
+                                        value={managerId}
+                                        onChange={(e) => setManagerId(e.target.value)}
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all appearance-none"
+                                    >
+                                        <option value="">-- Direct to Admin (No Manager) --</option>
+                                        {allWorkers.filter(w => w.id !== id && (w.hierarchy_role === 'manager')).map(w => (
+                                            <option key={w.id} value={w.id}>{w.name} — Manager</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-slate-400 text-xs font-bold mt-2 italic">Note: Tasks can come from any manager. This is just the primary reporting boss.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-8 border-t border-slate-50">
+                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                                <HiKey className="text-blue-600" /> Login Credentials (PIN Login)
+                            </h3>
+                            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-6">
+                                <p className="text-blue-700 font-bold text-sm">Set up email + PIN so this person can log in to their own dashboard at <span className="font-black">/staff-login</span></p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Login Email</label>
+                                    <input
+                                        type="email"
+                                        value={loginEmail}
+                                        onChange={(e) => setLoginEmail(e.target.value)}
+                                        placeholder="worker@company.com"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">PIN Code (4-6 digits)</label>
+                                    <input
+                                        type="text"
+                                        value={loginPin}
+                                        onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        placeholder="1234"
+                                        maxLength={6}
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all text-2xl tracking-[0.5em] text-center"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={async () => {
+                                if (!loginEmail || !loginPin) {
+                                    alert('Please fill in both email and PIN');
+                                    return;
+                                }
+                                setSavingCredentials(true);
+                                try {
+                                    const roleSuccess = await setStaffLoginCredentials(id, loginEmail, loginPin, hierarchyRole);
+                                    const managerSuccess = await setStaffManager(id, managerId || null);
+                                    if (roleSuccess && managerSuccess) {
+                                        alert('Login credentials & role saved successfully!');
+                                    } else {
+                                        alert('Failed to save. Please try again.');
+                                    }
+                                } catch (err) {
+                                    console.error(err);
+                                    alert('Error saving credentials');
+                                } finally {
+                                    setSavingCredentials(false);
+                                }
+                            }}
+                            disabled={savingCredentials}
+                            className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-sm uppercase shadow-xl shadow-orange-200 hover:bg-orange-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            <HiKey className="text-xl" />
+                            {savingCredentials ? 'Saving...' : 'SAVE LOGIN CREDENTIALS & ROLE'}
+                        </button>
                     </div>
                 )}
 

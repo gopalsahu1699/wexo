@@ -202,8 +202,8 @@ export default function FinancePage() {
                     </div>
                     <div className="text-right">
                         <p className="text-slate-400 font-black text-xs uppercase tracking-widest mb-1">Final Balance</p>
-                        <p className={`text-5xl font-black ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            ₹{stats.netProfit.toLocaleString()}
+                        <p className={`text-5xl font-black ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {stats.netProfit >= 0 ? '+' : '-'}₹{Math.abs(stats.netProfit).toLocaleString()}
                         </p>
                     </div>
                 </div>
@@ -254,9 +254,16 @@ export default function FinancePage() {
                     </div>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className={`glass rounded-[2rem] p-8 border-2 shadow-xl relative overflow-hidden group ${stats.netProfit >= 0 ? 'bg-blue-600 border-blue-500 text-white' : 'bg-red-600 border-red-500 text-white'}`}>
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }} 
+                    animate={{ opacity: 1, scale: 1 }} 
+                    transition={{ delay: 0.3 }} 
+                    className={`rounded-[2rem] p-8 border-2 shadow-xl relative overflow-hidden group ${stats.netProfit >= 0 ? 'bg-green-600 border-green-500 text-white' : 'bg-red-500 border-red-400 text-white'}`}
+                >
                     <p className="font-black text-xs uppercase tracking-widest mb-1 relative opacity-80">Actual Profit/Loss</p>
-                    <h3 className="text-3xl font-black relative">₹{stats.netProfit.toLocaleString()}</h3>
+                    <h3 className="text-3xl font-black relative">
+                        {stats.netProfit >= 0 ? '+' : '-'}₹{Math.abs(stats.netProfit).toLocaleString()}
+                    </h3>
                     <div className="mt-4 flex items-center gap-2 font-bold text-[10px] uppercase tracking-wider relative">
                         {stats.growth >= 0 ? <HiTrendingUp /> : <HiTrendingDown />}
                         {stats.growth}% Margin ({filterPeriod})

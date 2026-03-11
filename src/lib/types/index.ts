@@ -24,6 +24,12 @@ export interface Worker {
     total_jobs_completed: number;
     status: 'active' | 'inactive';
     created_at: string;
+
+    // Hierarchy fields
+    hierarchy_role: 'admin' | 'manager' | 'team_member';
+    manager_id: string | null;
+    login_email: string | null;
+    login_pin: string | null;
 }
 
 export interface Job {
@@ -111,4 +117,97 @@ export interface AttendanceRecord {
     check_out?: string;
     overtime_hours: number;
     notes?: string;
+}
+
+// ═══════════════════════════════════════════════════════════
+// HIERARCHY TYPES
+// ═══════════════════════════════════════════════════════════
+
+export type HierarchyRole = 'admin' | 'manager' | 'team_member';
+
+export type TaskStatus = 
+    'pending' | 'accepted' | 'rejected' | 
+    'in_progress' | 'completed' | 'verified' | 'reassigned';
+
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface TaskAssignment {
+    id: string;
+    user_id: string;
+    assigned_by: string;
+    assigned_to: string;
+    job_id: string | null;
+
+    title: string;
+    description: string | null;
+    priority: TaskPriority;
+    category: string | null;
+
+    // Location & Customer
+    service_address: string | null;
+    location_lat: number | null;
+    location_lng: number | null;
+    customer_name: string | null;
+    customer_phone: string | null;
+
+    // Status
+    status: TaskStatus;
+    rejection_reason: string | null;
+
+    // Dates
+    deadline: string | null;
+    scheduled_date: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    verified_at: string | null;
+
+    // Completion
+    completion_notes: string | null;
+    work_photos: string[];
+    
+    // Estimates
+    estimated_hours: number;
+    actual_hours: number;
+    estimated_cost: number;
+    actual_cost: number;
+
+    created_at: string;
+    updated_at: string;
+
+    // Joined data (populated in queries)
+    assigned_by_name?: string;
+    assigned_to_name?: string;
+    assigned_by_worker?: Worker;
+    assigned_to_worker?: Worker;
+}
+
+export interface TaskComment {
+    id: string;
+    user_id: string;
+    task_id: string;
+    author_staff_id: string | null;
+    author_name: string;
+    message: string;
+    attachments: string[];
+    created_at: string;
+}
+
+export interface TaskStatusLog {
+    id: string;
+    user_id: string;
+    task_id: string;
+    changed_by: string | null;
+    old_status: string | null;
+    new_status: string;
+    notes: string | null;
+    created_at: string;
+}
+
+// Session for PIN-based login (stored in localStorage)
+export interface StaffSession {
+    staffId: string;
+    staffName: string;
+    role: HierarchyRole;
+    ownerId: string;  // the admin's auth user_id
+    loginEmail: string;
 }
