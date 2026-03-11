@@ -1,80 +1,80 @@
 import { createClient } from "@/lib/supabase";
-import { Product } from "@/lib/types";
+import { Customer } from "@/lib/types";
 
-export async function getInventory() {
+export async function getCustomers() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
     const { data, error } = await supabase
-        .from('products')
+        .from('customers')
         .select('*')
         .eq('user_id', user.id)
         .order('name');
 
     if (error) {
-        console.error('Error fetching inventory:', error);
+        console.error('Error fetching customers:', error);
         return [];
     }
-    return data as any as Product[];
+    return data as any as Customer[];
 }
 
-export async function getProduct(id: string) {
+export async function getCustomer(id: string) {
     const supabase = createClient();
     const { data, error } = await supabase
-        .from('products')
+        .from('customers')
         .select('*')
         .eq('id', id)
         .single();
 
     if (error) {
-        console.error('Error fetching product:', error);
+        console.error('Error fetching customer:', error);
         return null;
     }
-    return data as any as Product;
+    return data as any as Customer;
 }
 
-export async function addProduct(product: Partial<Product>) {
+export async function addCustomer(customer: Partial<Customer>) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
-        .from('products')
-        .insert([{ ...product, user_id: user.id }])
+        .from('customers')
+        .insert([{ ...customer, user_id: user.id }])
         .select()
         .single();
 
     if (error) throw error;
-    return data as any as Product;
+    return data as any as Customer;
 }
 
-export async function updateProduct(id: string, product: Partial<Product>) {
+export async function updateCustomer(id: string, customer: Partial<Customer>) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
-        .from('products')
-        .update(product)
+        .from('customers')
+        .update(customer)
         .eq('id', id)
         .select()
         .single();
 
     if (error) throw error;
-    return data as any as Product;
+    return data as any as Customer;
 }
 
-export async function deleteProduct(id: string) {
+export async function deleteCustomer(id: string) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('User not authenticated');
 
     const { error } = await supabase
-        .from('products')
+        .from('customers')
         .delete()
         .eq('id', id);
 

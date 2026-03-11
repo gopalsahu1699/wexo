@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { HiArrowRight, HiShieldCheck, HiDatabase, HiLightningBolt, HiUsers } from "react-icons/hi";
-import { FaWrench, FaCctv, FaTools, FaBuilding } from "react-icons/fa";
+import { FaWrench, FaTools, FaBuilding } from "react-icons/fa";
 
 export default function LandingPage() {
   const features = [

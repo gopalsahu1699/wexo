@@ -158,14 +158,14 @@ export default function SettingsPage() {
                         <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-600">
                             <HiDatabase className="text-2xl" />
                         </div>
-                        <h3 className="text-xl font-black text-slate-800">Database & BillMensor Sync</h3>
+                        <h3 className="text-xl font-black text-slate-800">Database Synchronization</h3>
                     </div>
                     <div className="p-6 bg-slate-900 rounded-3xl relative overflow-hidden">
                         <div className="flex items-center justify-between relative z-10">
                             <div>
                                 <p className="text-blue-400 font-black uppercase tracking-widest text-xs mb-1">Status: Connected</p>
                                 <h4 className="text-white font-black text-xl mb-4">Shared PostgreSQL DB</h4>
-                                <p className="text-slate-400 font-medium text-sm">WEXO syncs with BillMensor for Customers and Inventory.</p>
+                                <p className="text-slate-400 font-medium text-sm">WEXO syncs your Customers and Inventory across devices.</p>
                             </div>
                             <HiShieldCheck className="text-6xl text-green-500 opacity-20" />
                         </div>

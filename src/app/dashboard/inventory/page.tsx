@@ -2,33 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import {
     HiPlus,
     HiSearch,
     HiInboxIn,
     HiExclamationCircle,
-    HiChevronRight,
-    HiX
+    HiChevronRight
 } from "react-icons/hi";
 import { FaBoxOpen } from "react-icons/fa";
-import { getInventory, addProduct } from "@/lib/services/inventory";
+import { getInventory } from "@/lib/services/inventory";
 import { Product } from "@/lib/types";
 
 export default function InventoryPage() {
+    const router = useRouter();
     const [inventory, setInventory] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [adding, setAdding] = useState(false);
-    const [newProduct, setNewProduct] = useState({
-        name: "",
-        category: "",
-        stock_quantity: 0,
-        unit: "pcs",
-        min_stock_level: 0,
-        price: 0,
-        purchase_price: 0,
-    });
 
     useEffect(() => {
         loadInventory();
@@ -43,22 +33,6 @@ export default function InventoryPage() {
             console.error("Error loading inventory:", err);
         } finally {
             setLoading(false);
-        }
-    }
-
-    async function handleAddProduct() {
-        if (!newProduct.name.trim()) return;
-        setAdding(true);
-        try {
-            await addProduct(newProduct as Partial<Product>);
-            setShowAddModal(false);
-            setNewProduct({ name: "", category: "", stock_quantity: 0, unit: "pcs", min_stock_level: 0, price: 0, purchase_price: 0 });
-            await loadInventory();
-        } catch (err) {
-            console.error("Error adding product:", err);
-            alert("Failed to add product. Please try again.");
-        } finally {
-            setAdding(false);
         }
     }
 
@@ -96,7 +70,7 @@ export default function InventoryPage() {
                         <HiInboxIn className="text-xl text-green-600" /> Stock In
                     </button>
                     <button
-                        onClick={() => setShowAddModal(true)}
+                        onClick={() => router.push("/dashboard/inventory/new")}
                         className="btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors"
                     >
                         <HiPlus className="text-xl" /> Add New Item
@@ -131,6 +105,7 @@ export default function InventoryPage() {
                                             key={item.id}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
+                                            onClick={() => router.push(`/dashboard/inventory/${item.id}`)}
                                             className="hover:bg-slate-50 transition-colors group cursor-pointer"
                                         >
                                             <td className="p-8">
@@ -216,69 +191,6 @@ export default function InventoryPage() {
                     </div>
                 </div>
             </div>
-
-            {/* Add Product Modal */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white rounded-[2rem] p-10 w-full max-w-lg shadow-2xl"
-                    >
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-2xl font-black text-slate-900">Add New Item</h2>
-                            <button onClick={() => setShowAddModal(false)} className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center hover:bg-red-100 hover:text-red-600 transition-colors">
-                                <HiX className="text-xl" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-black text-slate-600 mb-2">Item Name *</label>
-                                <input type="text" value={newProduct.name} onChange={(e) => setNewProduct(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Copper Wire 1.5mm" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-black text-slate-600 mb-2">Category</label>
-                                <input type="text" value={newProduct.category} onChange={(e) => setNewProduct(p => ({ ...p, category: e.target.value }))} placeholder="e.g. Electrical" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-black text-slate-600 mb-2">Stock Qty</label>
-                                    <input type="number" value={newProduct.stock_quantity} onChange={(e) => setNewProduct(p => ({ ...p, stock_quantity: +e.target.value }))} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-black text-slate-600 mb-2">Unit</label>
-                                    <select value={newProduct.unit} onChange={(e) => setNewProduct(p => ({ ...p, unit: e.target.value }))} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all appearance-none">
-                                        <option value="pcs">Pieces</option>
-                                        <option value="m">Meters</option>
-                                        <option value="ft">Feet</option>
-                                        <option value="kg">Kilograms</option>
-                                        <option value="l">Liters</option>
-                                        <option value="box">Boxes</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-black text-slate-600 mb-2">Sell Price (₹)</label>
-                                    <input type="number" value={newProduct.price} onChange={(e) => setNewProduct(p => ({ ...p, price: +e.target.value }))} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-black text-slate-600 mb-2">Min Stock Level</label>
-                                    <input type="number" value={newProduct.min_stock_level} onChange={(e) => setNewProduct(p => ({ ...p, min_stock_level: +e.target.value }))} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-800 focus:outline-none focus:border-blue-500 transition-all" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-4 mt-10">
-                            <button onClick={() => setShowAddModal(false)} className="flex-1 px-6 py-4 bg-slate-100 text-slate-700 rounded-xl font-black hover:bg-slate-200 transition-all">Cancel</button>
-                            <button onClick={handleAddProduct} disabled={adding || !newProduct.name.trim()} className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                                {adding ? "Adding..." : "Add Item"}
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
         </div>
     );
 }

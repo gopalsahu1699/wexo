@@ -10,6 +10,14 @@ export function createClient() {
 
   return createBrowserClient(
     url || '',
-    anonKey || ''
+    anonKey || '',
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'wexo-auth-token',
+      }
+    }
   )
 }

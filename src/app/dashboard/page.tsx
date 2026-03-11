@@ -88,17 +88,17 @@ export default function DashboardPage() {
                             </div>
                         ) : (
                             jobs.map((job) => (
-                                <div key={job.id} className="flex items-center justify-between p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100 hover:border-blue-200 transition-all">
+                                <div key={job.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 md:p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100 hover:border-blue-200 transition-all gap-4">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                        <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
                                             <HiClipboardCheck className="text-blue-600 text-xl" />
                                         </div>
-                                        <div>
-                                            <h4 className="font-black text-slate-800">{job.job_title} #{job.job_number}</h4>
-                                            <p className="text-slate-500 text-sm font-medium">{job.service_address || 'No address'}</p>
+                                        <div className="min-w-0">
+                                            <h4 className="font-black text-slate-800 truncate mb-0.5">{job.job_title} #{job.job_number}</h4>
+                                            <p className="text-slate-500 text-xs md:text-sm font-medium truncate italic">{job.service_address || 'No address'}</p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center">
                                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${job.status === 'completed' ? 'bg-green-100 text-green-700' :
                                                 job.status === 'assigned' ? 'bg-blue-100 text-blue-700' :
                                                     job.status === 'pending' ? 'bg-orange-100 text-orange-700' :
@@ -106,7 +106,7 @@ export default function DashboardPage() {
                                             }`}>
                                             {job.status}
                                         </span>
-                                        <p className="text-slate-400 text-xs font-bold mt-2">
+                                        <p className="text-slate-400 text-[10px] md:text-xs font-bold sm:mt-2">
                                             {new Date(job.created_at).toLocaleDateString()}
                                         </p>
                                     </div>

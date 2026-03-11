@@ -7,6 +7,12 @@
 
 -- Migration to add extra staff fields (v2.1)
 -- Run this in your Supabase SQL Editor
+-- 1. Add Pay Basis to Staff Members (Essential for Daily/Monthly switching)
+ALTER TABLE public.staff_members 
+ADD COLUMN IF NOT EXISTS pay_basis TEXT DEFAULT 'monthly' CHECK (pay_basis IN ('monthly', 'daily'));
+-- This adds the necessary column to save the hours you enter
+ALTER TABLE public.staff_attendance 
+ADD COLUMN IF NOT EXISTS overtime_hours NUMERIC DEFAULT 0;
 
 ALTER TABLE public.staff_members ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ALTER TABLE public.staff_members ADD COLUMN IF NOT EXISTS half_day_salary NUMERIC DEFAULT 0;
@@ -941,6 +947,7 @@ CREATE TABLE IF NOT EXISTS public.staff_members (
     phone TEXT,
     role TEXT,
     salary NUMERIC DEFAULT 0,
+    pay_basis TEXT DEFAULT 'monthly' CHECK (pay_basis IN ('monthly', 'daily')),
     joining_date DATE DEFAULT CURRENT_DATE,
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     created_at TIMESTAMPTZ DEFAULT NOW()

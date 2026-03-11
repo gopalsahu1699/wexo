@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { HiMail, HiLockClosed, HiArrowRight } from "react-icons/hi";
 import { createClient } from "@/lib/supabase";
@@ -10,10 +10,21 @@ import { createClient } from "@/lib/supabase";
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [rememberMe, setRememberMe] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
     const supabase = createClient();
+
+    useEffect(() => {
+        async function checkSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                router.push("/dashboard");
+            }
+        }
+        checkSession();
+    }, [router, supabase.auth]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -94,7 +105,12 @@ export default function LoginPage() {
 
                         <div className="flex items-center justify-between text-sm">
                             <label className="flex items-center gap-2 font-bold text-slate-600 cursor-pointer">
-                                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
+                                <input 
+                                    type="checkbox" 
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                                />
                                 Remember Me
                             </label>
                             <Link href="/forgot-password" virtual-path="/forgot-password" id="forgot-password" className="text-blue-600 font-bold hover:underline">Forgot Password?</Link>

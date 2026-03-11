@@ -5,6 +5,20 @@ export interface Worker {
     phone: string | null;
     role: string | null;
     salary: number;
+    half_day_salary: number;
+    overtime_rate: number;
+    pay_basis: 'monthly' | 'daily';
+    aadhaar_number: string | null;
+    pan_number: string | null;
+    address: string | null;
+    bank_name: string | null;
+    bank_account_number: string | null;
+    bank_ifsc_code: string | null;
+    father_name: string | null;
+    gender: string | null;
+    dob: string | null;
+    whatsapp_phone: string | null;
+    photo_url: string | null;
     skills: string[];
     rating: number;
     total_jobs_completed: number;
@@ -85,4 +99,16 @@ export interface Customer {
     opening_balance: number;
     current_balance: number;
     created_at: string;
+}
+
+export interface AttendanceRecord {
+    id: string;
+    staff_id: string;
+    user_id: string;
+    date: string;
+    status: 'present' | 'absent' | 'half_day' | 'leave';
+    check_in?: string;
+    check_out?: string;
+    overtime_hours: number;
+    notes?: string;
 }
