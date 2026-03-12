@@ -20,6 +20,7 @@ interface CreateTaskInput {
     estimated_hours?: number;
     estimated_cost?: number;
     job_id?: string;
+    google_maps_url?: string;
 }
 
 export async function createTask(input: CreateTaskInput): Promise<TaskAssignment | null> {
@@ -45,13 +46,14 @@ export async function createTask(input: CreateTaskInput): Promise<TaskAssignment
             estimated_hours: input.estimated_hours || 0,
             estimated_cost: input.estimated_cost || 0,
             job_id: input.job_id || null,
+            google_maps_url: input.google_maps_url || null,
             status: "pending",
         })
         .select()
         .single();
 
     if (error) {
-        console.error("Error creating task:", error);
+        console.error("Error creating task:", error.message || error);
         return null;
     }
 
@@ -203,6 +205,58 @@ export async function updateTaskStatus(
 
     return true;
 }
+
+// ─────────────────────────────────────────────────────────────
+// UPDATE TASK (Edit Task)
+// ─────────────────────────────────────────────────────────────
+
+export async function updateTask(taskId: string, input: Partial<CreateTaskInput>): Promise<boolean> {
+    const supabase = createClient();
+    
+    // Convert undefined to null or just pass the defined properties
+    const updateData: Record<string, unknown> = {};
+    if (input.assigned_to !== undefined) updateData.assigned_to = input.assigned_to;
+    if (input.title !== undefined) updateData.title = input.title;
+    if (input.description !== undefined) updateData.description = input.description || null;
+    if (input.priority !== undefined) updateData.priority = input.priority;
+    if (input.category !== undefined) updateData.category = input.category || null;
+    if (input.service_address !== undefined) updateData.service_address = input.service_address || null;
+    if (input.customer_name !== undefined) updateData.customer_name = input.customer_name || null;
+    if (input.customer_phone !== undefined) updateData.customer_phone = input.customer_phone || null;
+    if (input.deadline !== undefined) updateData.deadline = input.deadline || null;
+    if (input.estimated_hours !== undefined) updateData.estimated_hours = input.estimated_hours || 0;
+    if (input.estimated_cost !== undefined) updateData.estimated_cost = input.estimated_cost || 0;
+    if (input.google_maps_url !== undefined) updateData.google_maps_url = input.google_maps_url || null;
+
+    if (Object.keys(updateData).length === 0) return true;
+
+    const { error } = await supabase
+        .from("task_assignments")
+        .update(updateData)
+        .eq("id", taskId);
+
+    if (error) {
+        console.error("Error updating task:", error.message || error);
+        return false;
+    }
+
+    return true;
+}
+
+// ─────────────────────────────────────────────────────────────
+// DELETE TASK
+// ─────────────────────────────────────────────────────────────
+
+export async function deleteTask(taskId: string): Promise<boolean> {
+    const supabase = createClient();
+    const { error } = await supabase.from("task_assignments").delete().eq("id", taskId);
+    if (error) {
+        console.error("Error deleting task:", error);
+        return false;
+    }
+    return true;
+}
+
 
 // ─────────────────────────────────────────────────────────────
 // TASK COMMENTS

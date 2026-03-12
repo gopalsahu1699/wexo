@@ -76,13 +76,13 @@ export default function WorkersPage() {
                     </div>
                     <div className="flex gap-3">
                         <button
-                            onClick={() => router.push("/dashboard/workers/attendance")}
+                            onClick={() => router.push("/dashboard/workForce/attendance")}
                             className="flex-1 md:flex-none bg-white text-slate-700 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-slate-100 hover:bg-slate-50 transition-colors shadow-sm text-sm"
                         >
                             <HiBadgeCheck className="text-xl text-blue-600" /> Attendance
                         </button>
                         <button
-                            onClick={() => router.push("/dashboard/workers/new")}
+                            onClick={() => router.push("/dashboard/workForce/new")}
                             className="flex-1 md:flex-none btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors text-sm"
                         >
                             <HiPlus className="text-xl" /> Add New
@@ -105,7 +105,7 @@ export default function WorkersPage() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: i * 0.05 }}
-                            onClick={() => router.push(`/dashboard/workers/${w.id}`)}
+                            onClick={() => router.push(`/dashboard/workForce/${w.id}`)}
                             className="glass p-8 rounded-[2.5rem] card-3d border border-slate-100 cursor-pointer group"
                         >
                             <div className="flex items-center justify-between mb-6">

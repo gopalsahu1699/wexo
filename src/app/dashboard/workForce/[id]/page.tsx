@@ -96,11 +96,11 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
                 setLoginEmail(data.login_email || '');
                 setLoginPin(data.login_pin || '');
             } else {
-                router.push("/dashboard/workers");
+                router.push("/dashboard/workForce");
             }
         } catch (err) {
             console.error("Error loading worker:", err);
-            router.push("/dashboard/workers");
+            router.push("/dashboard/workForce");
         } finally {
             setLoading(false);
         }
@@ -124,7 +124,7 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
             } else {
                 await updateWorker(id, dataToSave);
             }
-            router.push('/dashboard/workers');
+            router.push('/dashboard/workForce');
         } catch (err: any) {
             console.error("Error saving worker:", err);
             const errorMessage = err?.message || err?.details || "Failed to save worker. Please check if all fields match the database.";
@@ -139,7 +139,7 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
             setSaving(true);
             try {
                 await deleteWorker(id);
-                router.push('/dashboard/workers');
+                router.push('/dashboard/workForce');
             } catch (err) {
                 console.error("Error deleting worker:", err);
                 alert("Failed to delete worker.");
@@ -160,7 +160,7 @@ export default function WorkerDetailsPage({ params }: { params: Promise<{ id: st
         <div className="space-y-8 max-w-4xl mx-auto pb-10">
             <div className="flex items-center gap-4">
                 <button
-                    onClick={() => router.push('/dashboard/workers')}
+                    onClick={() => router.push('/dashboard/workForce')}
                     className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm border border-slate-100"
                 >
                     <HiArrowLeft className="text-xl" />

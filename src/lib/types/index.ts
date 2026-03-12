@@ -147,6 +147,7 @@ export interface TaskAssignment {
     service_address: string | null;
     location_lat: number | null;
     location_lng: number | null;
+    google_maps_url: string | null;
     customer_name: string | null;
     customer_phone: string | null;
 

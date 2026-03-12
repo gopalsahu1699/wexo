@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
     HiPlus, HiClipboardCheck, HiClock, HiCheckCircle,
     HiExclamation, HiUserGroup, HiChevronDown, HiChevronUp,
     HiPhone, HiLocationMarker, HiFilter, HiX
 } from "react-icons/hi";
-import { getAllTasks, createTask, updateTaskStatus, getTaskStats, TaskStats } from "@/lib/services/tasks";
+import { getAllTasks, createTask, updateTaskStatus, deleteTask, getTaskStats, TaskStats } from "@/lib/services/tasks";
 import { getWorkers } from "@/lib/services/workers";
 import { TaskAssignment, Worker, TaskStatus, TaskPriority } from "@/lib/types";
 
@@ -16,16 +17,8 @@ export default function TasksPage() {
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [stats, setStats] = useState<TaskStats>({ total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0 });
     const [loading, setLoading] = useState(true);
-    const [showCreateModal, setShowCreateModal] = useState(false);
     const [expandedTask, setExpandedTask] = useState<string | null>(null);
     const [filterStatus, setFilterStatus] = useState<string>('all');
-
-    // Create form state
-    const [form, setForm] = useState({
-        title: "", description: "", assigned_to: "", priority: "medium" as TaskPriority,
-        category: "", service_address: "", customer_name: "", customer_phone: "",
-        deadline: "", estimated_hours: "", estimated_cost: ""
-    });
 
     useEffect(() => {
         loadData();
@@ -49,41 +42,10 @@ export default function TasksPage() {
         }
     }
 
-    async function handleCreateTask() {
-        if (!form.title || !form.assigned_to) {
-            alert("Please enter a task title and select a person");
-            return;
-        }
-
-        // Find an admin staff member or use the first worker as "assigned_by"
-        // In production, admin creates a staff_member for themselves
-        const adminStaff = workers.find(w => w.hierarchy_role === 'admin') || workers[0];
-        if (!adminStaff) {
-            alert("No staff members found. Add yourself as an admin staff member first.");
-            return;
-        }
-
-        const result = await createTask({
-            assigned_by: adminStaff.id,
-            assigned_to: form.assigned_to,
-            title: form.title,
-            description: form.description || undefined,
-            priority: form.priority,
-            category: form.category || undefined,
-            service_address: form.service_address || undefined,
-            customer_name: form.customer_name || undefined,
-            customer_phone: form.customer_phone || undefined,
-            deadline: form.deadline || undefined,
-            estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : undefined,
-            estimated_cost: form.estimated_cost ? Number(form.estimated_cost) : undefined,
-        });
-
-        if (result) {
-            setShowCreateModal(false);
-            setForm({ title: "", description: "", assigned_to: "", priority: "medium", category: "", service_address: "", customer_name: "", customer_phone: "", deadline: "", estimated_hours: "", estimated_cost: "" });
-            loadData();
-        } else {
-            alert("Failed to create task. Please try again.");
+    async function handleDeleteTask(taskId: string) {
+        if (confirm("Are you sure you want to delete this task?")) {
+            const success = await deleteTask(taskId);
+            if (success) loadData();
         }
     }
 
@@ -121,11 +83,6 @@ export default function TasksPage() {
         return <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${map[priority] || map['medium']}`}>{priority}</span>;
     };
 
-    // Group managers and team members for the dropdown
-    const managers = workers.filter(w => w.hierarchy_role === 'manager');
-    const teamMembers = workers.filter(w => w.hierarchy_role === 'team_member');
-    const unassigned = workers.filter(w => !w.hierarchy_role || w.hierarchy_role === 'team_member');
-
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -144,12 +101,12 @@ export default function TasksPage() {
                         Assign, Track & Verify all field work
                     </p>
                 </div>
-                <button
-                    onClick={() => setShowCreateModal(true)}
+                <Link
+                    href="/dashboard/tasks/assign"
                     className="bg-blue-600 text-white font-black px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors text-sm"
                 >
                     <HiPlus className="text-xl" /> ASSIGN NEW TASK
-                </button>
+                </Link>
             </div>
 
             {/* Stats */}
@@ -236,8 +193,18 @@ export default function TasksPage() {
                                     <div className="grid grid-cols-2 gap-4 text-sm">
                                         {task.service_address && (
                                             <div className="col-span-2 flex items-start gap-2">
-                                                <HiLocationMarker className="text-blue-500 shrink-0" />
-                                                <span className="text-slate-600 font-bold">{task.service_address}</span>
+                                                <HiLocationMarker className="text-blue-500 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="text-slate-600 font-bold block">{task.service_address}</span>
+                                                    <a 
+                                                        href={task.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.service_address)}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="mt-1 inline-flex items-center gap-1 text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-md"
+                                                    >
+                                                        <HiLocationMarker /> Open Map
+                                                    </a>
+                                                </div>
                                             </div>
                                         )}
                                         {task.customer_phone && (
@@ -277,6 +244,27 @@ export default function TasksPage() {
                                             ✅ VERIFY & APPROVE WORK
                                         </button>
                                     )}
+
+                                    <div className="flex gap-2 pt-2 mt-4 border-t border-slate-200">
+                                        <Link
+                                            href={`/dashboard/tasks/${task.id}`}
+                                            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs hover:bg-slate-200 transition-colors shadow-sm"
+                                        >
+                                            VIEW
+                                        </Link>
+                                        <Link
+                                            href={`/dashboard/tasks/${task.id}/edit`}
+                                            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl font-bold text-xs hover:bg-blue-200 transition-colors shadow-sm"
+                                        >
+                                            EDIT
+                                        </Link>
+                                        <button
+                                            onClick={() => handleDeleteTask(task.id)}
+                                            className="px-4 py-2 bg-red-100 text-red-700 rounded-xl font-bold text-xs hover:bg-red-200 transition-colors shadow-sm"
+                                        >
+                                            DELETE
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </motion.div>
@@ -284,200 +272,6 @@ export default function TasksPage() {
                 )}
             </div>
 
-            {/* Create Task Modal */}
-            {showCreateModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-start md:items-center justify-center p-4 overflow-y-auto">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white rounded-[2rem] p-6 md:p-10 w-full max-w-2xl shadow-2xl my-8"
-                    >
-                        <div className="flex items-center justify-between mb-8">
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-900">ASSIGN NEW TASK</h2>
-                                <p className="text-slate-400 font-bold text-sm italic mt-1">Create & assign work to your team</p>
-                            </div>
-                            <button onClick={() => setShowCreateModal(false)} className="p-2 text-slate-400 hover:text-slate-600">
-                                <HiX className="text-2xl" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-5">
-                            {/* Assign To */}
-                            <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">ASSIGN TO (WHO WILL DO THIS?)</label>
-                                <select
-                                    value={form.assigned_to}
-                                    onChange={(e) => setForm(f => ({ ...f, assigned_to: e.target.value }))}
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                >
-                                    <option value="">-- Select Person --</option>
-                                    {managers.length > 0 && (
-                                        <optgroup label="📋 MANAGERS (Supervisors)">
-                                            {managers.map(w => <option key={w.id} value={w.id}>{w.name} — {w.role || 'Manager'}</option>)}
-                                        </optgroup>
-                                    )}
-                                    {teamMembers.length > 0 && (
-                                        <optgroup label="🔧 TEAM MEMBERS (Workers)">
-                                            {teamMembers.map(w => <option key={w.id} value={w.id}>{w.name} — {w.role || 'Worker'}</option>)}
-                                        </optgroup>
-                                    )}
-                                    {unassigned.length > 0 && managers.length === 0 && teamMembers.length === 0 && (
-                                        <optgroup label="👷 ALL WORKERS">
-                                            {workers.map(w => <option key={w.id} value={w.id}>{w.name} — {w.role || 'Staff'}</option>)}
-                                        </optgroup>
-                                    )}
-                                </select>
-                            </div>
-
-                            {/* Task Title */}
-                            <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">TASK TITLE (WHAT WORK?)</label>
-                                <input
-                                    type="text"
-                                    value={form.title}
-                                    onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                    placeholder="e.g., AC Service at Sharma House"
-                                />
-                            </div>
-
-                            {/* Description */}
-                            <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">DESCRIPTION (DETAILS)</label>
-                                <textarea
-                                    value={form.description}
-                                    onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500 resize-none"
-                                    rows={3}
-                                    placeholder="Describe the work to be done..."
-                                />
-                            </div>
-
-                            {/* Priority + Category */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">URGENCY</label>
-                                    <select
-                                        value={form.priority}
-                                        onChange={(e) => setForm(f => ({ ...f, priority: e.target.value as TaskPriority }))}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                    >
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                        <option value="urgent">🔴 Urgent</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">CATEGORY</label>
-                                    <select
-                                        value={form.category}
-                                        onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                    >
-                                        <option value="">Select</option>
-                                        <option value="electrical">Electrical</option>
-                                        <option value="plumbing">Plumbing</option>
-                                        <option value="ac_repair">AC Repair</option>
-                                        <option value="painting">Painting</option>
-                                        <option value="construction">Construction</option>
-                                        <option value="cleaning">Cleaning</option>
-                                        <option value="carpentry">Carpentry</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Customer Info */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">CUSTOMER NAME</label>
-                                    <input
-                                        type="text"
-                                        value={form.customer_name}
-                                        onChange={(e) => setForm(f => ({ ...f, customer_name: e.target.value }))}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                        placeholder="Customer name"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">CUSTOMER PHONE</label>
-                                    <input
-                                        type="tel"
-                                        value={form.customer_phone}
-                                        onChange={(e) => setForm(f => ({ ...f, customer_phone: e.target.value }))}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                        placeholder="Phone number"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Location */}
-                            <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">SERVICE ADDRESS</label>
-                                <input
-                                    type="text"
-                                    value={form.service_address}
-                                    onChange={(e) => setForm(f => ({ ...f, service_address: e.target.value }))}
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                    placeholder="Full address where work needs to be done"
-                                />
-                            </div>
-
-                            {/* Deadline + Estimates */}
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">DEADLINE</label>
-                                    <input
-                                        type="date"
-                                        value={form.deadline}
-                                        onChange={(e) => setForm(f => ({ ...f, deadline: e.target.value }))}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">EST. HOURS</label>
-                                    <input
-                                        type="number"
-                                        value={form.estimated_hours}
-                                        onChange={(e) => setForm(f => ({ ...f, estimated_hours: e.target.value }))}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                        placeholder="0"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">EST. COST (₹)</label>
-                                    <input
-                                        type="number"
-                                        value={form.estimated_cost}
-                                        onChange={(e) => setForm(f => ({ ...f, estimated_cost: e.target.value }))}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                        placeholder="0"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Submit */}
-                            <div className="flex gap-4 pt-4">
-                                <button
-                                    onClick={() => setShowCreateModal(false)}
-                                    className="flex-1 py-4 rounded-2xl font-black text-slate-400 uppercase text-sm"
-                                >
-                                    CANCEL
-                                </button>
-                                <button
-                                    onClick={handleCreateTask}
-                                    disabled={!form.title || !form.assigned_to}
-                                    className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-sm shadow-xl shadow-blue-200 disabled:opacity-40"
-                                >
-                                    ASSIGN TASK
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
         </div>
     );
 }

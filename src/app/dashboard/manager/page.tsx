@@ -222,7 +222,17 @@ export default function ManagerDashboard() {
                                         {task.service_address && (
                                             <div className="flex items-start gap-2">
                                                 <HiLocationMarker className="text-blue-500 mt-0.5 shrink-0" />
-                                                <p className="text-sm text-slate-600 font-bold">{task.service_address}</p>
+                                                <div>
+                                                    <p className="text-sm text-slate-600 font-bold">{task.service_address}</p>
+                                                    <a 
+                                                        href={task.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.service_address)}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="mt-1 inline-flex items-center gap-1 text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-md"
+                                                    >
+                                                        <HiLocationMarker /> Open Google Maps
+                                                    </a>
+                                                </div>
                                             </div>
                                         )}
 

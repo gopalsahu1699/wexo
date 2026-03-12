@@ -223,7 +223,7 @@ export default function MemberDashboard() {
 
                                         {task.service_address && (
                                             <a 
-                                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.service_address)}`}
+                                                href={task.google_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.service_address)}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-start gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100"

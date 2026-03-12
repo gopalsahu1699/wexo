@@ -96,7 +96,7 @@ export default function AttendancePage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2 md:px-0">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => router.push('/dashboard/workers')}
+                        onClick={() => router.push('/dashboard/workForce')}
                         className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl md:rounded-2xl flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors shadow-sm border border-slate-100 shrink-0"
                     >
                         <HiArrowLeft className="text-xl" />
