@@ -12,12 +12,44 @@ export function createClient() {
     url || '',
     anonKey || '',
     {
+      cookies: {
+        getAll() {
+          return parseCookieString(document.cookie)
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            document.cookie = serializeCookie(name, value, options)
+          })
+        },
+      },
       auth: {
-        persistSession: true,
-        autoRefreshToken: true,
+        flowType: 'pkce',
         detectSessionInUrl: true,
-        storageKey: 'wexo-auth-token',
+        persistSession: true,
       }
     }
   )
+}
+
+// Helper functions for cookie handling in the browser
+function parseCookieString(cookieString: string) {
+  return cookieString
+    .split(';')
+    .filter(Boolean)
+    .map((cookie) => {
+      const [name, ...value] = cookie.split('=')
+      return { name: name.trim(), value: value.join('=') }
+    })
+}
+
+function serializeCookie(name: string, value: string, options: any) {
+  let cookie = `${name}=${value}`
+  if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`
+  if (options.domain) cookie += `; Domain=${options.domain}`
+  if (options.path) cookie += `; Path=${options.path}`
+  if (options.expires && options.expires instanceof Date) cookie += `; Expires=${options.expires.toUTCString()}`
+  if (options.httpOnly) cookie += `; HttpOnly`
+  if (options.secure) cookie += `; Secure`
+  if (options.sameSite) cookie += `; SameSite=${options.sameSite}`
+  return cookie
 }

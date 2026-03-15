@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { HiMail, HiLockClosed, HiArrowRight } from "react-icons/hi";
+import { FcGoogle } from "react-icons/fc";
 import { createClient } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -12,6 +13,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(true);
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
     const supabase = createClient();
@@ -24,7 +26,33 @@ export default function LoginPage() {
             }
         }
         checkSession();
+
+        // Check for error messages in URL
+        const params = new URLSearchParams(window.location.search);
+        const errorMsg = params.get('error');
+        if (errorMsg) setError(errorMsg);
     }, [router, supabase.auth]);
+
+    const handleGoogleLogin = async () => {
+        setGoogleLoading(true);
+        setError(null);
+        try {
+            const { error: authError } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback`,
+                    queryParams: {
+                        prompt: 'select_account',
+                    },
+                },
+            });
+
+            if (authError) throw authError;
+        } catch (err: any) {
+            setError(err.message || "Failed to sign in with Google");
+            setGoogleLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -118,7 +146,7 @@ export default function LoginPage() {
 
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || googleLoading}
                             className={`w-full btn-3d bg-blue-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 text-lg shadow-xl shadow-blue-200 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
                             {loading ? (
@@ -131,6 +159,27 @@ export default function LoginPage() {
                             )}
                         </button>
                     </form>
+
+                    <div className="mt-6">
+                        <div className="relative flex items-center py-4">
+                            <div className="flex-grow border-t border-slate-200"></div>
+                            <span className="flex-shrink mx-4 text-slate-400 text-sm font-bold">OR</span>
+                            <div className="flex-grow border-t border-slate-200"></div>
+                        </div>
+
+                        <button
+                            onClick={handleGoogleLogin}
+                            disabled={loading || googleLoading}
+                            className={`w-full bg-white border border-slate-200 text-slate-700 font-bold py-4 rounded-2xl flex items-center justify-center gap-3 text-lg shadow-sm hover:bg-slate-50 transition-all ${googleLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                            {googleLoading ? (
+                                <div className="w-5 h-5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                            ) : (
+                                <FcGoogle className="text-2xl" />
+                            )}
+                            Continue with Google
+                        </button>
+                    </div>
 
                     <div className="mt-8 pt-8 border-t border-slate-100 text-center space-y-3">
                         <p className="text-slate-500 font-medium">
