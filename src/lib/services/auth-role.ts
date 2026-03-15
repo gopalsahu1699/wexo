@@ -10,26 +10,32 @@ const STAFF_SESSION_KEY = "wexo-staff-session";
 export async function staffLogin(email: string, pin: string): Promise<StaffSession | null> {
     const supabase = createClient();
 
-    // Find the staff member across all businesses by login_email + login_pin
+    // Use a secure RPC to verify credentials without exposing the table to public RLS
     const { data, error } = await supabase
-        .from("staff_members")
-        .select("*")
-        .eq("login_email", email.toLowerCase().trim())
-        .eq("login_pin", pin)
-        .eq("status", "active")
-        .single();
+        .rpc("staff_login_verify", { 
+            p_email: email.toLowerCase().trim(), 
+            p_pin: pin 
+        });
 
-    if (error || !data) {
-        console.error("Staff login failed:", error);
+    if (error) {
+        console.error("Staff login query error:", error);
+        return null;
+    }
+
+    // data is returned as an array from RPC SETOF
+    const staff = data && (data as any[]).length > 0 ? (data as any[])[0] : null;
+
+    if (!staff) {
+        console.warn("Staff login failed: Invalid credentials or inactive account.");
         return null;
     }
 
     const session: StaffSession = {
-        staffId: data.id,
-        staffName: data.name,
-        role: data.hierarchy_role || "team_member",
-        ownerId: data.user_id,
-        loginEmail: data.login_email,
+        staffId: staff.id,
+        staffName: staff.name,
+        role: staff.hierarchy_role || "team_member",
+        ownerId: staff.user_id,
+        loginEmail: staff.login_email,
     };
 
     // Save session to localStorage

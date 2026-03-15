@@ -14,9 +14,11 @@ export function createClient() {
     {
       cookies: {
         getAll() {
+          if (typeof document === 'undefined') return []
           return parseCookieString(document.cookie)
         },
         setAll(cookiesToSet) {
+          if (typeof document === 'undefined') return
           cookiesToSet.forEach(({ name, value, options }) => {
             document.cookie = serializeCookie(name, value, options)
           })

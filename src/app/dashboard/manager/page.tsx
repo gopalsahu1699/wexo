@@ -9,7 +9,7 @@ import {
     HiChevronDown, HiChevronUp, HiPhone, HiLocationMarker
 } from "react-icons/hi";
 import { getStaffSession, staffLogout } from "@/lib/services/auth-role";
-import { getTasksAssignedTo, getTasksAssignedBy, updateTaskStatus, getTaskStats, TaskStats } from "@/lib/services/tasks";
+import { getTasksAssignedTo, getTasksAssignedBy, updateTaskStatus, getTaskStats, TaskStats, getTeamTasksForManager } from "@/lib/services/tasks";
 import { TaskAssignment, StaffSession, TaskStatus } from "@/lib/types";
 
 export default function ManagerDashboard() {
@@ -17,7 +17,7 @@ export default function ManagerDashboard() {
     const [session, setSession] = useState<StaffSession | null>(null);
     const [myTasks, setMyTasks] = useState<TaskAssignment[]>([]);
     const [teamTasks, setTeamTasks] = useState<TaskAssignment[]>([]);
-    const [stats, setStats] = useState<TaskStats>({ total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0 });
+    const [stats, setStats] = useState<TaskStats>({ total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0 });
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'my_tasks' | 'team_tasks'>('my_tasks');
     const [expandedTask, setExpandedTask] = useState<string | null>(null);
@@ -36,9 +36,9 @@ export default function ManagerDashboard() {
         setLoading(true);
         try {
             const [myTasksData, teamTasksData, statsData] = await Promise.all([
-                getTasksAssignedTo(s.staffId),
-                getTasksAssignedBy(s.staffId),
-                getTaskStats(s.staffId, 'assigned_to')
+                getTasksAssignedTo(s.staffId, s.ownerId),
+                getTeamTasksForManager(s.staffId, s.ownerId),
+                getTaskStats(s.staffId, 'assigned_to', s.ownerId)
             ]);
             setMyTasks(myTasksData);
             setTeamTasks(teamTasksData);
@@ -54,6 +54,7 @@ export default function ManagerDashboard() {
         if (!session) return;
         const success = await updateTaskStatus(taskId, newStatus, session.staffId, {
             rejection_reason: reason,
+            ownerId: session.ownerId,
         });
         if (success) {
             loadData(session);

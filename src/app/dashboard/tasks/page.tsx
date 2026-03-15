@@ -15,7 +15,7 @@ import { TaskAssignment, Worker, TaskStatus, TaskPriority } from "@/lib/types";
 export default function TasksPage() {
     const [tasks, setTasks] = useState<TaskAssignment[]>([]);
     const [workers, setWorkers] = useState<Worker[]>([]);
-    const [stats, setStats] = useState<TaskStats>({ total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0 });
+    const [stats, setStats] = useState<TaskStats>({ total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0 });
     const [loading, setLoading] = useState(true);
     const [expandedTask, setExpandedTask] = useState<string | null>(null);
     const [filterStatus, setFilterStatus] = useState<string>('all');

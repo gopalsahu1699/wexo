@@ -4,248 +4,299 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
     HiOfficeBuilding,
-    HiGlobeAlt,
     HiColorSwatch,
     HiDatabase,
     HiBell,
     HiShieldCheck,
     HiCheckCircle,
-    HiLogout
+    HiLogout,
+    HiUser,
+    HiCreditCard,
+    HiSupport,
+    HiChevronRight,
+    HiPhone,
+    HiMail
 } from "react-icons/hi";
 import { createClient } from "@/lib/supabase";
+import { getCurrentUser, UserType, staffLogout } from "@/lib/services/auth-role";
 
 export default function SettingsPage() {
     const router = useRouter();
     const supabase = createClient();
+    const [userType, setUserType] = useState<UserType>({ type: "none" });
+    const [loading, setLoading] = useState(true);
 
+    // Common State
+    const [notifications, setNotifications] = useState([
+        { label: "Job Assignment Alerts", enabled: true, role: ['admin', 'manager', 'team_member'] },
+        { label: "Team Status Updates", enabled: true, role: ['admin', 'manager'] },
+        { label: "Low Inventory Alerts", enabled: true, role: ['admin'] },
+        { label: "Daily Summary", enabled: false, role: ['admin', 'manager'] },
+        { label: "Payment Credits", enabled: true, role: ['team_member'] },
+    ]);
+
+    // Admin State
     const [companyName, setCompanyName] = useState("");
     const [industryType, setIndustryType] = useState("Electric & Hardware");
     const [serviceAddress, setServiceAddress] = useState("");
+
+    // Profile State (Staff)
+    const [fullName, setFullName] = useState("");
+    const [phone, setPhone] = useState("");
+    
+    // UI State
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [userEmail, setUserEmail] = useState("");
-    const [notifications, setNotifications] = useState([
-        { label: "Instant WhatsApp Alert on Job Assignment", enabled: true },
-        { label: "Low Inventory Email Notifications", enabled: true },
-        { label: "Worker Punch-in/Out Push Alerts", enabled: true },
-        { label: "Daily Revenue Summary (9 PM)", enabled: false },
-    ]);
 
     useEffect(() => {
-        async function loadUser() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                setUserEmail(user.email || "");
-                // Load settings from user_metadata if available
-                const meta = user.user_metadata || {};
-                if (meta.company_name) setCompanyName(meta.company_name);
-                if (meta.industry_type) setIndustryType(meta.industry_type);
-                if (meta.service_address) setServiceAddress(meta.service_address);
+        async function loadSettings() {
+            const user = await getCurrentUser();
+            setUserType(user);
+            
+            if (user.type === "admin") {
+                const { data: { user: authUser } } = await supabase.auth.getUser();
+                if (authUser) {
+                    const meta = authUser.user_metadata || {};
+                    setCompanyName(meta.company_name || "");
+                    setIndustryType(meta.industry_type || "Electric & Hardware");
+                    setServiceAddress(meta.service_address || "");
+                    setFullName(meta.full_name || "");
+                }
+            } else if (user.type === "staff") {
+                setFullName(user.session.staffName);
+                // In a real app, we'd fetch staff-specific settings here
             }
+            setLoading(false);
         }
-        loadUser();
+        loadSettings();
     }, []);
 
-    async function handleSaveSettings() {
+    async function handleSave() {
         setSaving(true);
         try {
-            const { error } = await supabase.auth.updateUser({
-                data: {
-                    company_name: companyName,
-                    industry_type: industryType,
-                    service_address: serviceAddress,
-                }
-            });
-            if (error) throw error;
+            if (userType.type === "admin") {
+                const { error } = await supabase.auth.updateUser({
+                    data: {
+                        company_name: companyName,
+                        industry_type: industryType,
+                        service_address: serviceAddress,
+                        full_name: fullName
+                    }
+                });
+                if (error) throw error;
+            } else {
+                // Mock staff update
+                await new Promise(r => setTimeout(r, 800));
+            }
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
         } catch (err) {
-            console.error("Error saving settings:", err);
-            alert("Failed to save settings.");
+            console.error("Error saving:", err);
+            alert("Failed to save changes.");
         } finally {
             setSaving(false);
         }
     }
 
-    function handleDiscard() {
-        setCompanyName("");
-        setIndustryType("Electric & Hardware");
-        setServiceAddress("");
-    }
-
-    function toggleNotification(index: number) {
-        setNotifications(prev => prev.map((n, i) => i === index ? { ...n, enabled: !n.enabled } : n));
-    }
-
     async function handleLogout() {
-        await supabase.auth.signOut();
-        router.push("/login");
+        if (userType.type === "admin") {
+            await supabase.auth.signOut();
+            router.push("/login");
+        } else {
+            staffLogout();
+            router.push("/staff-login");
+        }
     }
 
-    return (
-        <div className="max-w-4xl space-y-10 pb-20">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-black text-slate-900">Settings</h2>
-                    <p className="text-slate-500 font-medium">Configure your WEXO enterprise profile</p>
+    if (loading) return (
+        <div className="min-h-[60vh] flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+
+    // ─────────────────────────────────────────────────────────────
+    // RIDER / TEAM MEMBER VIEW
+    // ─────────────────────────────────────────────────────────────
+    if (userType.type === "staff" && userType.session.role === "team_member") {
+        return (
+            <div className="max-w-md mx-auto space-y-8 pb-32">
+                <div className="text-center pt-6">
+                    <div className="w-24 h-24 bg-slate-900 rounded-[2rem] mx-auto flex items-center justify-center text-white text-4xl font-black mb-4 shadow-xl">
+                        {fullName[0]}
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900">{fullName}</h2>
+                    <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mt-1">Verified Rider Team</p>
                 </div>
-                {userEmail && (
-                    <div className="text-right">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logged in as</p>
-                        <p className="text-sm font-black text-slate-700">{userEmail}</p>
-                    </div>
-                )}
-            </div>
 
-            <div className="space-y-8">
-                {/* Success Notification */}
-                {saved && (
-                    <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-2xl text-green-700 font-bold animate-fade-in">
-                        <HiCheckCircle className="text-xl" />
-                        Settings saved successfully!
-                    </div>
-                )}
-
-                {/* Company Profile */}
-                <section className="glass p-10 rounded-[2.5rem]">
-                    <div className="flex items-center gap-4 mb-8">
-                        <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
-                            <HiOfficeBuilding className="text-2xl" />
-                        </div>
-                        <h3 className="text-xl font-black text-slate-800">Business Profile</h3>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-8">
-                        <div>
-                            <label className="block text-sm font-black text-slate-700 mb-2">Company Name</label>
-                            <input
-                                type="text"
-                                value={companyName}
-                                onChange={(e) => setCompanyName(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                                placeholder="Your company name"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-black text-slate-700 mb-2">Industry Type</label>
-                            <select
-                                value={industryType}
-                                onChange={(e) => setIndustryType(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-medium focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
-                            >
-                                <option>Electric & Hardware</option>
-                                <option>CCTV & Security</option>
-                                <option>Plumbing & Sanitary</option>
-                                <option>AC & HVAC</option>
-                                <option>General Services</option>
-                            </select>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-black text-slate-700 mb-2">Service Address</label>
-                            <textarea
-                                value={serviceAddress}
-                                onChange={(e) => setServiceAddress(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-medium focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
-                                placeholder="Main Street, Business Hub, Sector 44..."
-                            />
-                        </div>
-                    </div>
-                </section>
-
-                {/* Database & Integration */}
-                <section className="glass p-10 rounded-[2.5rem]">
-                    <div className="flex items-center gap-4 mb-8">
-                        <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-600">
-                            <HiDatabase className="text-2xl" />
-                        </div>
-                        <h3 className="text-xl font-black text-slate-800">Database Synchronization</h3>
-                    </div>
-                    <div className="p-6 bg-slate-900 rounded-3xl relative overflow-hidden">
-                        <div className="flex items-center justify-between relative z-10">
-                            <div>
-                                <p className="text-blue-400 font-black uppercase tracking-widest text-xs mb-1">Status: Connected</p>
-                                <h4 className="text-white font-black text-xl mb-4">Shared PostgreSQL DB</h4>
-                                <p className="text-slate-400 font-medium text-sm">WEXO syncs your Customers and Inventory across devices.</p>
-                            </div>
-                            <HiShieldCheck className="text-6xl text-green-500 opacity-20" />
-                        </div>
-                    </div>
-                </section>
-
-                {/* Branding */}
-                <section className="glass p-10 rounded-[2.5rem]">
-                    <div className="flex items-center gap-4 mb-8">
-                        <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-600">
-                            <HiColorSwatch className="text-2xl" />
-                        </div>
-                        <h3 className="text-xl font-black text-slate-800">Custom Branding</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-10 items-center">
-                        <div>
-                            <p className="text-sm font-black text-slate-700 mb-4">Primary Brand Color</p>
-                            <div className="flex gap-4">
-                                <div className="w-12 h-12 bg-blue-600 rounded-full cursor-pointer ring-4 ring-blue-100 ring-offset-2"></div>
-                                <div className="w-12 h-12 bg-orange-500 rounded-full cursor-pointer border-4 border-white shadow-sm"></div>
-                                <div className="w-12 h-12 bg-emerald-500 rounded-full cursor-pointer border-4 border-white shadow-sm"></div>
-                                <div className="w-12 h-12 bg-purple-600 rounded-full cursor-pointer border-4 border-white shadow-sm"></div>
+                <div className="space-y-4">
+                    <section className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-6 shadow-sm">
+                        <div className="flex items-center gap-4 text-slate-400">
+                            <HiUser className="text-2xl" />
+                            <div className="flex-1">
+                                <p className="text-[10px] uppercase font-black tracking-widest">Full Name</p>
+                                <p className="text-sm font-bold text-slate-800">{fullName}</p>
                             </div>
                         </div>
-                        <div className="flex-1 min-w-[300px]">
-                            <p className="text-sm font-black text-slate-700 mb-4">Company Logo</p>
-                            <div className="border-2 border-dashed border-slate-200 rounded-3xl p-8 text-center hover:border-blue-300 transition-colors cursor-pointer">
-                                <HiGlobeAlt className="text-3xl text-slate-300 mx-auto mb-2" />
-                                <p className="text-slate-400 font-bold">Click to upload brand logo</p>
+                        <div className="flex items-center gap-4 text-slate-400">
+                            <HiMail className="text-2xl" />
+                            <div className="flex-1">
+                                <p className="text-[10px] uppercase font-black tracking-widest">Email Address</p>
+                                <p className="text-sm font-bold text-slate-800">{userType.session.loginEmail}</p>
                             </div>
                         </div>
-                    </div>
-                </section>
+                    </section>
 
-                {/* Notification Settings */}
-                <section className="glass p-10 rounded-[2.5rem]">
-                    <div className="flex items-center gap-4 mb-8">
-                        <div className="w-12 h-12 bg-yellow-100 rounded-2xl flex items-center justify-center text-yellow-600">
-                            <HiBell className="text-2xl" />
+                    <section className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
+                        <p className="px-6 pt-6 pb-2 text-[10px] uppercase font-black text-slate-400 tracking-widest">Preferences</p>
+                        <div className="divide-y divide-slate-50">
+                            <button className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                <span className="flex items-center gap-3 font-bold text-slate-700 text-sm">
+                                    <HiBell className="text-xl text-blue-500" /> Notifications
+                                </span>
+                                <HiChevronRight className="text-slate-300" />
+                            </button>
+                            <button className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                <span className="flex items-center gap-3 font-bold text-slate-700 text-sm">
+                                    <HiCreditCard className="text-xl text-emerald-500" /> Payment Info
+                                </span>
+                                <HiChevronRight className="text-slate-300" />
+                            </button>
+                            <button className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                <span className="flex items-center gap-3 font-bold text-slate-700 text-sm">
+                                    <HiSupport className="text-xl text-purple-500" /> Help Support
+                                </span>
+                                <HiChevronRight className="text-slate-300" />
+                            </button>
                         </div>
-                        <h3 className="text-xl font-black text-slate-800">Notifications</h3>
-                    </div>
-                    <div className="space-y-4">
-                        {notifications.map((note, i) => (
-                            <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
-                                <span className="font-bold text-slate-700">{note.label}</span>
-                                <button
-                                    onClick={() => toggleNotification(i)}
-                                    className={`w-12 h-6 rounded-full relative cursor-pointer shadow-inner transition-colors ${note.enabled ? 'bg-blue-600' : 'bg-slate-300'}`}
-                                >
-                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${note.enabled ? 'right-1' : 'left-1'}`}></div>
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </section>
+                    </section>
 
-                {/* Action Buttons */}
-                <div className="pt-10 border-t border-slate-200 flex flex-col sm:flex-row justify-between gap-4">
-                    <button
+                    <button 
                         onClick={handleLogout}
-                        className="flex items-center justify-center gap-2 bg-red-50 text-red-600 font-black px-8 py-4 rounded-2xl border border-red-100 hover:bg-red-100 transition-all"
+                        className="w-full py-5 bg-red-50 text-red-600 rounded-3xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
                     >
-                        <HiLogout className="text-xl" />
-                        Sign Out
+                        <HiLogout className="text-lg" /> Sign Out from Device
                     </button>
-                    <div className="flex gap-4">
+                </div>
+            </div>
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN / MANAGER VIEW
+    // ─────────────────────────────────────────────────────────────
+    const isAdmin = userType.type === "admin";
+    
+    return (
+        <div className="max-w-5xl space-y-12 pb-20">
+            <header className="flex items-center justify-between">
+                <div className="space-y-1">
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">System Settings</h2>
+                    <p className="text-slate-500 font-bold text-sm uppercase tracking-widest opacity-60">
+                        {isAdmin ? "Enterprise Administration" : "Operations Management"}
+                    </p>
+                </div>
+                <button 
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-100 rounded-2xl text-slate-400 font-black text-xs uppercase tracking-widest hover:text-red-500 hover:border-red-100 transition-all active:scale-95"
+                >
+                    <HiLogout className="text-lg" /> Exit
+                </button>
+            </header>
+
+            <div className="grid lg:grid-cols-3 gap-10">
+                {/* Left Column: Forms */}
+                <div className="lg:col-span-2 space-y-8">
+                    {isAdmin && (
+                        <section className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                            <div className="flex items-center gap-4 mb-10">
+                                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-100/50">
+                                    <HiOfficeBuilding className="text-2xl" />
+                                </div>
+                                <h3 className="text-xl font-black text-slate-900 tracking-tight">Business Identity</h3>
+                            </div>
+
+                            <div className="grid sm:grid-cols-2 gap-8">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Organization Name</label>
+                                    <input
+                                        type="text"
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-black text-slate-800 focus:ring-4 focus:ring-blue-500/10 outline-none transition-shadow"
+                                        placeholder="e.g. WEXO Solutions"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Vertical</label>
+                                    <select
+                                        value={industryType}
+                                        onChange={(e) => setIndustryType(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 font-black text-slate-800 focus:ring-4 focus:ring-blue-500/10 outline-none appearance-none"
+                                    >
+                                        <option>Electric & Hardware</option>
+                                        <option>CCTV & Security</option>
+                                        <option>Plumbing & Sanitary</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </section>
+                    )}
+
+                    <section className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                        <div className="flex items-center gap-4 mb-10">
+                            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 border border-amber-100/50">
+                                <HiBell className="text-2xl" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight">Broadcast & Alerts</h3>
+                        </div>
+
+                        <div className="space-y-3">
+                            {notifications.filter(n => n.role.includes(userType.type === 'admin' ? 'admin' : 'manager')).map((n, i) => (
+                                <div key={i} className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-slate-100/50 group hover:bg-white transition-colors">
+                                    <span className="font-black text-slate-700 text-xs uppercase tracking-wide">{n.label}</span>
+                                    <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${n.enabled ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${n.enabled ? 'right-1' : 'left-1'}`} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                </div>
+
+                {/* Right Column: Actions & Info */}
+                <div className="space-y-8">
+                    <section className="bg-slate-950 p-8 rounded-[3rem] text-white relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 blur-3xl rounded-full translate-x-16 -translate-y-16" />
+                        <div className="relative z-10">
+                            <HiDatabase className="text-4xl text-blue-500 mb-6 group-hover:scale-110 transition-transform duration-500" />
+                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">System Infrastructure</p>
+                            <h4 className="text-2xl font-black mb-4">Instance Health</h4>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                                    <span className="text-xs font-bold text-slate-400">Database Connected</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <HiShieldCheck className="text-emerald-500" />
+                                    <span className="text-xs font-bold text-slate-400">Security Policies Active</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 space-y-4">
                         <button
-                            onClick={handleDiscard}
-                            className="btn-3d bg-white text-slate-600 font-black px-10 py-4 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all"
-                        >
-                            Discard Changes
-                        </button>
-                        <button
-                            onClick={handleSaveSettings}
+                            onClick={handleSave}
                             disabled={saving}
-                            className="btn-3d bg-blue-600 text-white font-black px-12 py-4 rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50"
+                            className="w-full py-5 bg-blue-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/20 hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
                         >
-                            {saving ? "Saving..." : "Save All Settings"}
+                            {saving ? "Syncing..." : "Update Settings"}
                         </button>
+                        {saved && (
+                            <div className="flex items-center justify-center gap-2 text-emerald-600 font-black text-[10px] uppercase tracking-widest animate-bounce">
+                                <HiCheckCircle /> Applied Successfully
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

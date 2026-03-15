@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "@/components/dashboard/Sidebar";
 import { HiMenuAlt2, HiX } from "react-icons/hi";
 import { createClient } from "@/lib/supabase";
+import { getStaffSession } from "@/lib/services/auth-role";
 
 export default function DashboardLayout({
     children,
@@ -13,25 +14,46 @@ export default function DashboardLayout({
 }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [userData, setUserData] = useState<{ name: string; initials: string; role: string } | null>(null);
+    const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
 
     useEffect(() => {
         async function loadUser() {
+            // 1. Check for Staff Session first (PIN login)
+            const staffSession = getStaffSession();
+            if (staffSession) {
+                const name = staffSession.staffName || "Staff Member";
+                const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                setUserData({
+                    name,
+                    initials,
+                    role: staffSession.role === 'manager' ? 'Manager' : 'Team Member'
+                });
+                return; // Exit early if staff
+            }
+
+            // 2. Fallback to Supabase Auth (Admin/Owner login)
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                router.push("/login");
+                // If we are on a staff-specific page, maybe we don't redirect to /login yet
+                // but usually the pages themselves handle their own session check via useEffect.
+                // For safety, only redirect if NOT on a staff page.
+                const isStaffPage = pathname?.startsWith('/dashboard/member') || pathname?.startsWith('/dashboard/manager');
+                if (!isStaffPage) {
+                    router.push("/login");
+                }
                 return;
             }
 
-            // Fetch profile
+            // Fetch profile for Admin
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('full_name, company_name, designation')
                 .eq('id', user.id)
                 .single();
 
-            // Redirect if setup incomplete
+            // Redirect if setup incomplete (only for Admin)
             if (!user.user_metadata?.business_name && !profile?.company_name) {
                 router.push("/finish-setup");
                 return;
@@ -47,7 +69,7 @@ export default function DashboardLayout({
             });
         }
         loadUser();
-    }, [router, supabase]);
+    }, [router, supabase, pathname]);
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">

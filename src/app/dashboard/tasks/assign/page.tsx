@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { HiArrowLeft } from "react-icons/hi";
 import { createTask } from "@/lib/services/tasks";
 import { getWorkers } from "@/lib/services/workers";
+import { getStaffSession } from "@/lib/services/auth-role";
 import { Worker, TaskPriority } from "@/lib/types";
 import dynamic from 'next/dynamic';
 
@@ -47,15 +48,25 @@ export default function AssignTaskPage() {
         }
 
         setSubmitting(true);
-        const adminStaff = workers.find(w => w.hierarchy_role === 'admin') || workers[0];
-        if (!adminStaff) {
-            alert("No staff members found. Add yourself as an admin staff member first.");
-            setSubmitting(false);
-            return;
+        
+        // 1. Identify who is assigning (from Staff Session or Workers list)
+        let creatorId = "";
+        const staff = getStaffSession();
+        if (staff) {
+            creatorId = staff.staffId;
+        } else {
+            // Fallback for Admin (search for first admin in workers)
+            const adminStaff = workers.find(w => w.hierarchy_role === 'admin') || workers[0];
+            if (!adminStaff) {
+                alert("No staff members found. Add yourself as an admin staff member first.");
+                setSubmitting(false);
+                return;
+            }
+            creatorId = adminStaff.id;
         }
 
         const result = await createTask({
-            assigned_by: adminStaff.id,
+            assigned_by: creatorId,
             assigned_to: form.assigned_to,
             title: form.title,
             description: form.description || undefined,

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase";
 import { TaskAssignment, TaskComment, TaskStatusLog, TaskStatus, TaskPriority } from "@/lib/types";
+import { getStaffSession } from "./auth-role";
 
 // ─────────────────────────────────────────────────────────────
 // CREATE TASK (Admin or Manager)
@@ -25,13 +26,26 @@ interface CreateTaskInput {
 
 export async function createTask(input: CreateTaskInput): Promise<TaskAssignment | null> {
     const supabase = createClient();
+    
+    // Determine the owner ID (either from auth user or staff session)
+    let ownerId: string | null = null;
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    
+    if (user) {
+        ownerId = user.id;
+    } else {
+        const staff = getStaffSession();
+        if (staff) {
+            ownerId = staff.ownerId;
+        }
+    }
+
+    if (!ownerId) return null;
 
     const { data, error } = await supabase
         .from("task_assignments")
         .insert({
-            user_id: user.id,
+            user_id: ownerId,
             assigned_by: input.assigned_by,
             assigned_to: input.assigned_to,
             title: input.title,
@@ -58,7 +72,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskAssignment
     }
 
     // Log the status change
-    await logTaskStatus(user.id, data.id, input.assigned_by, null, "pending", "Task created");
+    await logTaskStatus(ownerId, data.id, input.assigned_by, null, "pending", "Task created");
 
     return data;
 }
@@ -67,18 +81,23 @@ export async function createTask(input: CreateTaskInput): Promise<TaskAssignment
 // GET TASKS (with filters)
 // ─────────────────────────────────────────────────────────────
 
-export async function getTasksAssignedTo(staffId: string): Promise<TaskAssignment[]> {
+export async function getTasksAssignedTo(staffId: string, ownerId?: string): Promise<TaskAssignment[]> {
     const supabase = createClient();
 
-    const { data, error } = await supabase
+    let query = supabase
         .from("task_assignments")
         .select(`
             *,
-            assigned_by_worker:staff_members!task_assignments_assigned_by_fkey(id, name, phone, hierarchy_role),
-            assigned_to_worker:staff_members!task_assignments_assigned_to_fkey(id, name, phone, hierarchy_role)
+            assigned_by_worker:staff_members!task_assignments_assigned_by_fkey(id, name),
+            assigned_to_worker:staff_members!task_assignments_assigned_to_fkey(id, name)
         `)
-        .eq("assigned_to", staffId)
-        .order("created_at", { ascending: false });
+        .eq("assigned_to", staffId);
+
+    if (ownerId) {
+        query = query.eq("user_id", ownerId);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
         console.error("Error fetching tasks assigned to:", error);
@@ -87,18 +106,23 @@ export async function getTasksAssignedTo(staffId: string): Promise<TaskAssignmen
     return data || [];
 }
 
-export async function getTasksAssignedBy(staffId: string): Promise<TaskAssignment[]> {
+export async function getTasksAssignedBy(staffId: string, ownerId?: string): Promise<TaskAssignment[]> {
     const supabase = createClient();
 
-    const { data, error } = await supabase
+    let query = supabase
         .from("task_assignments")
         .select(`
             *,
-            assigned_by_worker:staff_members!task_assignments_assigned_by_fkey(id, name, phone, hierarchy_role),
-            assigned_to_worker:staff_members!task_assignments_assigned_to_fkey(id, name, phone, hierarchy_role)
+            assigned_by_worker:staff_members!task_assignments_assigned_by_fkey(id, name),
+            assigned_to_worker:staff_members!task_assignments_assigned_to_fkey(id, name)
         `)
-        .eq("assigned_by", staffId)
-        .order("created_at", { ascending: false });
+        .eq("assigned_by", staffId);
+
+    if (ownerId) {
+        query = query.eq("user_id", ownerId);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
         console.error("Error fetching tasks assigned by:", error);
@@ -107,19 +131,71 @@ export async function getTasksAssignedBy(staffId: string): Promise<TaskAssignmen
     return data || [];
 }
 
+/**
+ * Fetch all tasks for a manager's team (everyone reporting to them)
+ */
+export async function getTeamTasksForManager(managerId: string, ownerId?: string): Promise<TaskAssignment[]> {
+    const supabase = createClient();
+
+    // 1. Get all staff members reporting to this manager
+    const { data: teamMembers } = await supabase
+        .from("staff_members")
+        .select("id")
+        .eq("manager_id", managerId);
+
+    const teamIds = teamMembers?.map(m => m.id) || [];
+
+    // If no team members, only look for tasks assigned by the manager
+    let filter = `assigned_by.eq.${managerId}`;
+    if (teamIds.length > 0) {
+        filter += `,assigned_to.in.(${teamIds.join(',')})`;
+    }
+    
+    // 2. Fetch tasks
+    let query = supabase
+        .from("task_assignments")
+        .select(`
+            *,
+            assigned_by_worker:staff_members!task_assignments_assigned_by_fkey(id, name),
+            assigned_to_worker:staff_members!task_assignments_assigned_to_fkey(id, name)
+        `)
+        .or(filter);
+
+    if (ownerId) {
+        query = query.eq("user_id", ownerId);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
+
+    if (error) {
+        console.error("Error fetching team tasks:", error);
+        return [];
+    }
+    return data || [];
+}
+
 export async function getAllTasks(): Promise<TaskAssignment[]> {
     const supabase = createClient();
+    let ownerId: string | null = null;
+    
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    if (user) {
+        ownerId = user.id;
+    } else {
+        const staff = getStaffSession();
+        if (staff) ownerId = staff.ownerId;
+    }
+
+    if (!ownerId) return [];
 
     const { data, error } = await supabase
         .from("task_assignments")
         .select(`
             *,
-            assigned_by_worker:staff_members!task_assignments_assigned_by_fkey(id, name, phone, hierarchy_role),
-            assigned_to_worker:staff_members!task_assignments_assigned_to_fkey(id, name, phone, hierarchy_role)
+            assigned_by_worker:staff_members!task_assignments_assigned_by_fkey(id, name),
+            assigned_to_worker:staff_members!task_assignments_assigned_to_fkey(id, name)
         `)
-        .eq("user_id", user.id)
+        .eq("user_id", ownerId)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -129,18 +205,23 @@ export async function getAllTasks(): Promise<TaskAssignment[]> {
     return data || [];
 }
 
-export async function getTaskById(taskId: string): Promise<TaskAssignment | null> {
+export async function getTaskById(taskId: string, ownerId?: string): Promise<TaskAssignment | null> {
     const supabase = createClient();
 
-    const { data, error } = await supabase
+    let query = supabase
         .from("task_assignments")
         .select(`
             *,
             assigned_by_worker:staff_members!task_assignments_assigned_by_fkey(id, name, phone, hierarchy_role),
             assigned_to_worker:staff_members!task_assignments_assigned_to_fkey(id, name, phone, hierarchy_role)
         `)
-        .eq("id", taskId)
-        .single();
+        .eq("id", taskId);
+
+    if (ownerId) {
+        query = query.eq("user_id", ownerId);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
         console.error("Error fetching task:", error);
@@ -163,16 +244,22 @@ export async function updateTaskStatus(
         work_photos?: string[];
         actual_hours?: number;
         actual_cost?: number;
+        ownerId?: string; // Explicit ownerId for RLS
     }
 ): Promise<boolean> {
     const supabase = createClient();
 
-    // Get old status for logging
-    const { data: task } = await supabase
+    // Get old status and user_id for logging
+    let query = supabase
         .from("task_assignments")
         .select("status, user_id")
-        .eq("id", taskId)
-        .single();
+        .eq("id", taskId);
+    
+    if (extras?.ownerId) {
+        query = query.eq("user_id", extras.ownerId);
+    }
+
+    const { data: task } = await query.single();
 
     if (!task) return false;
 
@@ -210,7 +297,7 @@ export async function updateTaskStatus(
 // UPDATE TASK (Edit Task)
 // ─────────────────────────────────────────────────────────────
 
-export async function updateTask(taskId: string, input: Partial<CreateTaskInput>): Promise<boolean> {
+export async function updateTask(taskId: string, input: Partial<CreateTaskInput>, ownerId?: string): Promise<boolean> {
     const supabase = createClient();
     
     // Convert undefined to null or just pass the defined properties
@@ -230,10 +317,16 @@ export async function updateTask(taskId: string, input: Partial<CreateTaskInput>
 
     if (Object.keys(updateData).length === 0) return true;
 
-    const { error } = await supabase
+    let query = supabase
         .from("task_assignments")
         .update(updateData)
         .eq("id", taskId);
+
+    if (ownerId) {
+        query = query.eq("user_id", ownerId);
+    }
+
+    const { error } = await query;
 
     if (error) {
         console.error("Error updating task:", error.message || error);
@@ -247,9 +340,15 @@ export async function updateTask(taskId: string, input: Partial<CreateTaskInput>
 // DELETE TASK
 // ─────────────────────────────────────────────────────────────
 
-export async function deleteTask(taskId: string): Promise<boolean> {
+export async function deleteTask(taskId: string, ownerId?: string): Promise<boolean> {
     const supabase = createClient();
-    const { error } = await supabase.from("task_assignments").delete().eq("id", taskId);
+    let query = supabase.from("task_assignments").delete().eq("id", taskId);
+    
+    if (ownerId) {
+        query = query.eq("user_id", ownerId);
+    }
+
+    const { error } = await query;
     if (error) {
         console.error("Error deleting task:", error);
         return false;
@@ -359,19 +458,30 @@ export interface TaskStats {
     verified: number;
     rejected: number;
     overdue: number;
+    totalEarnings: number;
 }
 
-export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'assigned_by'): Promise<TaskStats> {
+export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'assigned_by', ownerId?: string): Promise<TaskStats> {
     const supabase = createClient();
+    
+    let currentOwnerId = ownerId;
     const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+        currentOwnerId = user.id;
+    } else if (!currentOwnerId) {
+        const staff = getStaffSession();
+        if (staff) currentOwnerId = staff.ownerId;
+    }
+
+    if (!currentOwnerId) {
+         return { total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0 };
+    }
 
     let query = supabase
         .from("task_assignments")
-        .select("status, deadline");
-
-    if (user) {
-        query = query.eq("user_id", user.id);
-    }
+        .select("status, deadline, actual_cost")
+        .eq("user_id", currentOwnerId);
 
     if (staffId && role === 'assigned_to') {
         query = query.eq("assigned_to", staffId);
@@ -382,9 +492,10 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
     const { data, error } = await query;
 
     if (error || !data) {
-        return { total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0 };
+        return { total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0 };
     }
 
+    console.log(`[TASK_DEBUG] Stats query returned ${data.length} records`);
     const today = new Date().toISOString().split('T')[0];
     const stats: TaskStats = {
         total: data.length,
@@ -395,6 +506,7 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
         verified: 0,
         rejected: 0,
         overdue: 0,
+        totalEarnings: 0
     };
 
     data.forEach((task) => {
@@ -403,8 +515,12 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
         else if (s === 'accepted') stats.accepted++;
         else if (s === 'in_progress') stats.in_progress++;
         else if (s === 'completed') stats.completed++;
-        else if (s === 'verified') stats.verified++;
+        else if (s === 'verified') {
+            stats.verified++;
+            stats.totalEarnings += (task.actual_cost || 0);
+        }
         else if (s === 'rejected') stats.rejected++;
+        
         // Count overdue: not completed and past deadline
         if (task.deadline && task.deadline < today && !['completed', 'verified', 'rejected'].includes(s)) {
             stats.overdue++;
