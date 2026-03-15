@@ -32,7 +32,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 px-6 py-4">
+      <nav className="fixed top-0 w-full z-50 px-6 pt-[calc(1rem+var(--sat))] pb-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between glass rounded-full px-8 py-3">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">

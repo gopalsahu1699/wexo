@@ -74,7 +74,7 @@ export default function DashboardLayout({
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
             {/* Mobile Header */}
-            <header className="md:hidden bg-white border-b border-slate-100 p-4 flex items-center justify-between sticky top-0 z-40 no-print">
+            <header className="md:hidden bg-white border-b border-slate-100 px-4 pt-[calc(1rem+var(--sat))] pb-4 flex items-center justify-between sticky top-0 z-40 no-print">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                         <span className="text-white font-black text-lg">W</span>

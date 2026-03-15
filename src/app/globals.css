@@ -28,6 +28,12 @@
   --background: #ffffff;
   --foreground: #0f172a;
   --radius: 1.5rem;
+  
+  /* Safe Area Insets for Mobile */
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
 }
 
 body {
@@ -35,6 +41,18 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  
+  /* Prevent bounce effect on mobile and handle safe areas */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+}
+
+html {
+  height: -webkit-fill-available;
 }
 
 @layer components {

@@ -18,6 +18,7 @@ import { getStaffSession, staffLogout } from "@/lib/services/auth-role";
 import { getTasksAssignedTo, getTaskStats, TaskStats } from "@/lib/services/tasks";
 import { TaskAssignment, StaffSession } from "@/lib/types";
 import { createClient } from "@/lib/supabase";
+import { setupPushNotifications } from "@/lib/services/mobile";
 
 export default function MemberDashboard() {
     const router = useRouter();
@@ -46,6 +47,7 @@ export default function MemberDashboard() {
         }
         setSession(s);
         loadData(s);
+        setupPushNotifications();
 
         const supabase = createClient();
         const channel = supabase

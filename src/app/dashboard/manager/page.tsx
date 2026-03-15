@@ -11,13 +11,14 @@ import {
 import { getStaffSession, staffLogout } from "@/lib/services/auth-role";
 import { getTasksAssignedTo, getTasksAssignedBy, updateTaskStatus, getTaskStats, TaskStats, getTeamTasksForManager } from "@/lib/services/tasks";
 import { TaskAssignment, StaffSession, TaskStatus } from "@/lib/types";
+import { createClient } from "@/lib/supabase";
 
 export default function ManagerDashboard() {
     const router = useRouter();
     const [session, setSession] = useState<StaffSession | null>(null);
     const [myTasks, setMyTasks] = useState<TaskAssignment[]>([]);
     const [teamTasks, setTeamTasks] = useState<TaskAssignment[]>([]);
-    const [stats, setStats] = useState<TaskStats>({ total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0 });
+    const [stats, setStats] = useState<TaskStats>({ total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0, paidEarnings: 0 });
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'my_tasks' | 'team_tasks'>('my_tasks');
     const [expandedTask, setExpandedTask] = useState<string | null>(null);
@@ -30,6 +31,22 @@ export default function ManagerDashboard() {
         }
         setSession(s);
         loadData(s);
+
+        const supabase = createClient();
+        const channel = supabase
+            .channel('manager-realtime')
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'task_assignments' 
+            }, () => {
+                loadData(s);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [router]);
 
     async function loadData(s: StaffSession) {

@@ -93,7 +93,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
             )}
 
             <div className={cn(
-                "w-72 h-screen bg-white border-r border-slate-50 flex flex-col fixed left-0 top-0 no-print transition-all duration-300 z-50 shadow-xl md:shadow-none translate-x-0",
+                "w-72 h-screen bg-white border-r border-slate-50 flex flex-col fixed left-0 top-0 no-print transition-all duration-300 z-50 shadow-xl md:shadow-none translate-x-0 pt-[var(--sat)] pb-[var(--sab)]",
                 !isOpen && "-translate-x-full md:translate-x-0"
             )}>
                 {/* Profile/Logo Header */}
