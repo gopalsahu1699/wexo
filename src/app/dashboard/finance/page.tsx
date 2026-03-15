@@ -7,24 +7,19 @@ import { getFinanceStats } from "@/lib/services/stats";
 import { getWorkers } from "@/lib/services/workers";
 import { getPayments, addPayment, Payment } from "@/lib/services/payments";
 import { Worker } from "@/lib/types";
-import { getCurrentUser, UserType } from "@/lib/services/auth-role";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
 
 export default function FinancePage() {
-    const router = useRouter();
-    const [userType, setUserType] = useState<UserType>({ type: "none" });
-    const [stats, setStats] = useState({ 
-        totalRevenue: 0, 
-        totalPayroll: 0, 
-        pendingPayments: 0, 
-        totalExpenses: 0, 
-        netProfit: 0, 
+    const [stats, setStats] = useState({
+        totalRevenue: 0,
+        totalPayroll: 0,
+        pendingPayments: 0,
+        totalExpenses: 0,
+        netProfit: 0,
         growth: 0,
         paymentIn: 0,
         paymentOut: 0
     });
-    
+
     // Filter states
     const [filterPeriod, setFilterPeriod] = useState<'month' | 'year' | 'all'>('month');
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -38,37 +33,16 @@ export default function FinancePage() {
     const [newPayment, setNewPayment] = useState({ amount: "", notes: "", mode: "cash" as any });
 
     useEffect(() => {
-        async function checkRole() {
-            const user = await getCurrentUser();
-            if (user.type !== 'admin') {
-                router.push('/dashboard');
-                return;
-            }
-            setUserType(user);
-            loadFinanceData();
-        }
-        checkRole();
-
-        const supabase = createClient();
-        const channel = supabase
-            .channel('finance-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => loadFinanceData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => loadFinanceData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => loadFinanceData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, () => loadFinanceData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_members' }, () => loadFinanceData())
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        const controller = new AbortController();
+        loadFinanceData();
+        return () => controller.abort();
     }, [filterPeriod, selectedMonth, selectedYear]);
 
     async function loadFinanceData() {
         setLoading(true);
         try {
             let startDate: string | undefined, endDate: string | undefined;
-            
+
             if (filterPeriod === 'month') {
                 startDate = new Date(selectedYear, selectedMonth, 1).toISOString().split('T')[0];
                 endDate = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split('T')[0];
@@ -82,17 +56,17 @@ export default function FinancePage() {
                 getWorkers(),
                 getPayments()
             ]);
-            
+
             setStats(financeData as any);
             setWorkers(workersData);
-            
+
             // Filter payments locally for display simplicity in the list
             const filteredPayments = paymentsData.filter(p => {
                 if (!startDate || !endDate) return true;
                 return p.payment_date >= startDate && p.payment_date <= endDate;
             });
             setPayments(filteredPayments);
-            
+
         } catch (err) {
             console.error("Error loading finance data:", err);
         } finally {
@@ -108,7 +82,6 @@ export default function FinancePage() {
                 type: paymentType,
                 payment_mode: newPayment.mode,
                 notes: newPayment.notes,
-                staff_id: (newPayment as any).staff_id || null, // FIX: Pass staff_id to service
                 payment_date: new Date().toISOString().split('T')[0],
                 payment_number: `PAY-${Date.now()}`
             });
@@ -151,8 +124,8 @@ export default function FinancePage() {
 
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 bg-white p-2 md:p-3 rounded-2xl md:rounded-[2rem] shadow-sm border border-slate-100 w-full xl:w-auto">
                     <div className="flex gap-2 w-full md:w-auto">
-                        <select 
-                            value={filterPeriod} 
+                        <select
+                            value={filterPeriod}
                             onChange={(e) => setFilterPeriod(e.target.value as any)}
                             className="flex-1 md:flex-none bg-slate-50 border-none rounded-xl px-3 py-2 font-black text-slate-600 text-xs md:text-sm focus:ring-0"
                         >
@@ -162,8 +135,8 @@ export default function FinancePage() {
                         </select>
 
                         {filterPeriod === 'month' && (
-                            <select 
-                                value={selectedMonth} 
+                            <select
+                                value={selectedMonth}
                                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
                                 className="flex-1 md:flex-none bg-slate-50 border-none rounded-xl px-3 py-2 font-black text-slate-600 text-xs md:text-sm focus:ring-0"
                             >
@@ -174,8 +147,8 @@ export default function FinancePage() {
 
                     <div className="flex gap-2 w-full md:w-auto">
                         {(filterPeriod === 'month' || filterPeriod === 'year') && (
-                            <select 
-                                value={selectedYear} 
+                            <select
+                                value={selectedYear}
                                 onChange={(e) => setSelectedYear(Number(e.target.value))}
                                 className="flex-1 md:flex-none bg-slate-50 border-none rounded-xl px-3 py-2 font-black text-slate-600 text-xs md:text-sm focus:ring-0"
                             >
@@ -183,7 +156,7 @@ export default function FinancePage() {
                             </select>
                         )}
 
-                        <button 
+                        <button
                             onClick={() => window.print()}
                             className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 md:px-6 md:py-3 rounded-xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all text-[10px] md:text-sm uppercase"
                         >
@@ -196,14 +169,14 @@ export default function FinancePage() {
 
             {/* Quick Actions (Income/Expense) */}
             <div className="flex flex-col md:flex-row gap-4 no-print">
-                <button 
+                <button
                     onClick={() => { setPaymentType('payment_in'); setShowPaymentModal(true); }}
                     className="flex-1 flex items-center justify-center gap-3 bg-green-600 text-white py-5 rounded-2xl font-black shadow-lg shadow-green-100 hover:scale-[1.02] transition-all uppercase tracking-wider"
                 >
                     <HiArrowCircleDown className="text-2xl" />
                     <span>Add Income (Money In)</span>
                 </button>
-                <button 
+                <button
                     onClick={() => { setPaymentType('payment_out'); setShowPaymentModal(true); }}
                     className="flex-1 flex items-center justify-center gap-3 bg-red-600 text-white py-5 rounded-2xl font-black shadow-lg shadow-red-100 hover:scale-[1.02] transition-all uppercase tracking-wider"
                 >
@@ -256,75 +229,75 @@ export default function FinancePage() {
             </div>
 
             {/* Dashboard Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="glass rounded-2xl md:rounded-[2rem] p-6 md:p-8 bg-white border-2 border-slate-50 shadow-sm">
-                    <p className="text-slate-400 font-black text-[10px] md:text-xs uppercase tracking-widest mb-1">Invoice Sales</p>
-                    <h3 className="text-2xl md:text-3xl font-black text-slate-900">₹{stats.totalRevenue.toLocaleString()}</h3>
-                    <div className="mt-4 flex items-center gap-2 text-blue-600 font-black text-[9px] md:text-[10px] uppercase tracking-wider">
-                        <HiCash className="text-sm md:text-base" /> Total Billed
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="glass rounded-[2rem] p-8 bg-white border-2 border-slate-50 shadow-sm">
+                    <p className="text-slate-400 font-black text-xs uppercase tracking-widest mb-1">Invoice Sales</p>
+                    <h3 className="text-3xl font-black text-slate-900">₹{stats.totalRevenue.toLocaleString()}</h3>
+                    <div className="mt-4 flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-wider">
+                        <HiCash className="text-base" /> Total Billed
                     </div>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="glass rounded-2xl md:rounded-[2rem] p-6 md:p-8 bg-white border-2 border-green-50 shadow-sm border-l-green-500 border-l-4">
-                    <p className="text-slate-400 font-black text-[10px] md:text-xs uppercase tracking-widest mb-1 text-green-600">Extra Income</p>
-                    <h3 className="text-2xl md:text-3xl font-black text-slate-900">₹{stats.paymentIn.toLocaleString()}</h3>
-                    <div className="mt-4 flex items-center gap-2 text-green-600 font-black text-[9px] md:text-[10px] uppercase tracking-wider">
-                        <HiArrowCircleDown className="text-sm md:text-base" /> Cash/UPI Received
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="glass rounded-[2rem] p-8 bg-white border-2 border-green-50 shadow-sm border-l-green-500 border-l-4">
+                    <p className="text-slate-400 font-black text-xs uppercase tracking-widest mb-1 text-green-600">Extra Income</p>
+                    <h3 className="text-3xl font-black text-slate-900">₹{stats.paymentIn.toLocaleString()}</h3>
+                    <div className="mt-4 flex items-center gap-2 text-green-600 font-black text-[10px] uppercase tracking-wider">
+                        <HiArrowCircleDown className="text-base" /> Cash/UPI Received
                     </div>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} className="glass rounded-2xl md:rounded-[2rem] p-6 md:p-8 bg-white border-2 border-red-50 shadow-sm border-l-red-500 border-l-4">
-                    <p className="text-slate-400 font-black text-[10px] md:text-xs uppercase tracking-widest mb-1 text-red-600">Total Spending</p>
-                    <h3 className="text-2xl md:text-3xl font-black text-slate-900">₹{(stats.totalExpenses).toLocaleString()}</h3>
-                    <div className="mt-4 flex items-center gap-2 text-red-600 font-black text-[9px] md:text-[10px] uppercase tracking-wider">
-                        <HiArrowCircleUp className="text-sm md:text-base" /> All Handled Costs
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} className="glass rounded-[2rem] p-8 bg-white border-2 border-red-50 shadow-sm border-l-red-500 border-l-4">
+                    <p className="text-slate-400 font-black text-xs uppercase tracking-widest mb-1 text-red-600">Total Spending</p>
+                    <h3 className="text-3xl font-black text-slate-900">₹{(stats.totalExpenses).toLocaleString()}</h3>
+                    <div className="mt-4 flex items-center gap-2 text-red-600 font-black text-[10px] uppercase tracking-wider">
+                        <HiArrowCircleUp className="text-base" /> All Handled Costs
                     </div>
                 </motion.div>
 
-                <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }} 
-                    animate={{ opacity: 1, scale: 1 }} 
-                    transition={{ delay: 0.3 }} 
-                    className={`rounded-2xl md:rounded-[2rem] p-6 md:p-8 border-2 shadow-xl relative overflow-hidden group ${stats.netProfit >= 0 ? 'bg-green-600 border-green-500 text-white' : 'bg-red-500 border-red-400 text-white'}`}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className={`rounded-[2rem] p-8 border-2 shadow-xl relative overflow-hidden group ${stats.netProfit >= 0 ? 'bg-green-600 border-green-500 text-white' : 'bg-red-500 border-red-400 text-white'}`}
                 >
-                    <p className="font-black text-[10px] md:text-xs uppercase tracking-widest mb-1 relative opacity-80">Actual Profit/Loss</p>
-                    <h3 className="text-2xl md:text-3xl font-black relative">
+                    <p className="font-black text-xs uppercase tracking-widest mb-1 relative opacity-80">Actual Profit/Loss</p>
+                    <h3 className="text-3xl font-black relative">
                         {stats.netProfit >= 0 ? '+' : '-'}₹{Math.abs(stats.netProfit).toLocaleString()}
                     </h3>
-                    <div className="mt-4 flex items-center gap-2 font-bold text-[9px] md:text-[10px] uppercase tracking-wider relative">
+                    <div className="mt-4 flex items-center gap-2 font-bold text-[10px] uppercase tracking-wider relative">
                         {stats.growth >= 0 ? <HiTrendingUp /> : <HiTrendingDown />}
                         {stats.growth}% Margin ({filterPeriod})
                     </div>
                 </motion.div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid lg:grid-cols-2 gap-8">
                 {/* Payroll Section */}
-                <div className="bg-white rounded-2xl md:rounded-[2.5rem] p-6 md:p-10 border-2 border-slate-50 shadow-sm">
+                <div className="bg-white rounded-[2.5rem] p-10 border-2 border-slate-50 shadow-sm">
                     <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h3 className="text-xl md:text-2xl font-black text-slate-800">Staff Payroll</h3>
-                            <p className="text-slate-400 font-bold text-xs uppercase tracking-wider italic">Monthly Liability</p>
+                            <h3 className="text-2xl font-black text-slate-800">Staff Payroll</h3>
+                            <p className="text-slate-400 font-bold text-sm uppercase tracking-wider italic">Monthly Liability</p>
                         </div>
-                        <div className="bg-blue-50 px-4 py-2 md:px-6 md:py-3 rounded-xl md:rounded-2xl border border-blue-100">
-                             <p className="text-blue-600 font-black text-lg md:text-xl">₹{stats.totalPayroll.toLocaleString()}</p>
+                        <div className="bg-blue-50 px-6 py-3 rounded-2xl border border-blue-100">
+                            <p className="text-blue-600 font-black text-xl">₹{stats.totalPayroll.toLocaleString()}</p>
                         </div>
                     </div>
-                    <div className="space-y-4 max-h-[400px] md:max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                         {workers.map((worker) => (
-                            <div key={worker.id} className="flex items-center justify-between p-4 md:p-6 bg-slate-50 rounded-2xl md:rounded-[2rem] border border-slate-100">
-                                <div className="flex items-center gap-3 md:gap-4">
-                                    <div className="w-10 h-10 md:w-14 md:h-14 bg-white rounded-lg md:rounded-2xl flex items-center justify-center font-black text-blue-600 shadow-sm border border-slate-100 text-lg md:text-xl">
+                            <div key={worker.id} className="flex items-center justify-between p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center font-black text-blue-600 shadow-sm border border-slate-100 text-xl">
                                         {worker.name[0]}
                                     </div>
                                     <div>
-                                        <p className="font-black text-slate-800 text-sm md:text-lg">{worker.name}</p>
-                                        <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">{worker.role || 'Staff'}</p>
+                                        <p className="font-black text-slate-800 text-lg">{worker.name}</p>
+                                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{worker.role || 'Staff'}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-lg md:text-xl font-black text-slate-900">₹{(worker.salary || 0).toLocaleString()}</p>
-                                    <p className="text-blue-50 text-[8px] md:text-[10px] font-black uppercase tracking-wider">{worker.pay_basis === 'daily' ? 'DAILY' : 'MONTHLY'}</p>
+                                    <p className="text-xl font-black text-slate-900">₹{(worker.salary || 0).toLocaleString()}</p>
+                                    <p className="text-blue-500 text-[10px] font-black uppercase tracking-wider">{worker.pay_basis === 'daily' ? 'DAILY WAGE' : 'MONTHLY'}</p>
                                 </div>
                             </div>
                         ))}
@@ -332,26 +305,26 @@ export default function FinancePage() {
                 </div>
 
                 {/* Performance Analytics (Printable List) */}
-                <div className="bg-white rounded-2xl md:rounded-[2.5rem] p-6 md:p-10 border-2 border-slate-50 shadow-sm">
-                    <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-1">Period Transactions</h3>
-                    <p className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-8 italic">Review all cash flow for this period</p>
-                    
-                    <div className="space-y-4 max-h-[400px] md:max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="bg-white rounded-[2.5rem] p-10 border-2 border-slate-50 shadow-sm">
+                    <h3 className="text-2xl font-black text-slate-800 mb-1">Period Transactions</h3>
+                    <p className="text-slate-400 font-bold text-sm uppercase tracking-wider mb-8 italic">Review all cash flow for this period</p>
+
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                         {payments.length === 0 ? (
                             <div className="text-center py-20 text-slate-300 font-black italic">No records for this {filterPeriod}.</div>
                         ) : (
                             payments.map((p) => (
-                                <div key={p.id} className="flex items-center justify-between p-4 md:p-6 bg-white rounded-2xl md:rounded-3xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                                    <div className="flex items-center gap-3 md:gap-4">
-                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-2xl flex items-center justify-center text-lg md:text-xl ${p.type === 'payment_in' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                <div key={p.id} className="flex items-center justify-between p-6 bg-white rounded-3xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${p.type === 'payment_in' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                             {p.type === 'payment_in' ? <HiArrowCircleDown /> : <HiArrowCircleUp />}
                                         </div>
                                         <div>
-                                            <p className="font-black text-slate-800 text-sm md:text-base">{p.notes || (p.type === 'payment_in' ? 'Income' : 'Expense')}</p>
-                                            <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">{p.payment_date} • {p.payment_mode}</p>
+                                            <p className="font-black text-slate-800">{p.notes || (p.type === 'payment_in' ? 'Income' : 'Expense')}</p>
+                                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{p.payment_date} • {p.payment_mode}</p>
                                         </div>
                                     </div>
-                                    <div className={`text-lg md:text-xl font-black ${p.type === 'payment_in' ? 'text-green-600' : 'text-red-600'}`}>
+                                    <div className={`text-xl font-black ${p.type === 'payment_in' ? 'text-green-600' : 'text-red-600'}`}>
                                         {p.type === 'payment_in' ? '+' : '-'}₹{p.amount.toLocaleString()}
                                     </div>
                                 </div>
@@ -367,12 +340,12 @@ export default function FinancePage() {
                     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-[3rem] p-10 w-full max-w-xl shadow-2xl">
                         <h2 className="text-3xl font-black text-slate-900 mb-2">{paymentType === 'payment_in' ? 'RECEIVE MONEY' : 'PAY MONEY'}</h2>
                         <p className="text-slate-500 font-bold mb-8 italic">Enter the amount below</p>
-                        
+
                         <div className="space-y-6">
                             <div>
                                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">AMOUNT (₹)</label>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     value={newPayment.amount}
                                     onChange={(e) => setNewPayment(p => ({ ...p, amount: e.target.value }))}
                                     className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 font-black text-2xl text-slate-800 focus:outline-none focus:border-blue-500"
@@ -381,21 +354,8 @@ export default function FinancePage() {
                             </div>
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">RECIPIENT / CATEGORY</label>
-                                    <select 
-                                        value={(newPayment as any).staff_id || ""}
-                                        onChange={(e) => setNewPayment(p => ({ ...p, staff_id: e.target.value }))}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 font-black text-slate-800 text-sm appearance-none"
-                                    >
-                                        <option value="">General Expense</option>
-                                        {workers.map(w => (
-                                            <option key={w.id} value={w.id}>PAY TO: {w.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
                                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">MODE</label>
-                                    <select 
+                                    <select
                                         value={newPayment.mode}
                                         onChange={(e) => setNewPayment(p => ({ ...p, mode: e.target.value }))}
                                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 font-black text-slate-800 text-sm appearance-none"
@@ -407,12 +367,12 @@ export default function FinancePage() {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">DESCRIPTION</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         value={newPayment.notes}
                                         onChange={(e) => setNewPayment(p => ({ ...p, notes: e.target.value }))}
                                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 font-black text-slate-800 text-sm"
-                                        placeholder="e.g. Salary for March"
+                                        placeholder="What is this for?"
                                     />
                                 </div>
                             </div>
