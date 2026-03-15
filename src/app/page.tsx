@@ -52,6 +52,14 @@ export default function LandingPage() {
             <Link href="/signup" className="btn-3d bg-blue-600 text-white font-bold px-6 py-2 rounded-full shadow-blue-200">
               Get Started
             </Link>
+            <a 
+              href="/wexo-latest.apk" 
+              download 
+              className="hidden lg:flex items-center gap-2 bg-slate-100 text-slate-700 font-bold px-4 py-2 rounded-full hover:bg-slate-200 transition-all text-sm"
+            >
+              <HiLightningBolt className="text-orange-500" />
+              Download App
+            </a>
           </div>
         </div>
       </nav>
@@ -77,9 +85,13 @@ export default function LandingPage() {
               <Link href="/signup" className="btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 text-lg">
                 Register Your Business <HiArrowRight />
               </Link>
-              <button className="btn-3d bg-white text-slate-800 font-bold px-8 py-4 rounded-2xl border border-slate-200 text-lg">
-                Watch Demo
-              </button>
+              <a 
+                href="/wexo-latest.apk" 
+                download
+                className="btn-3d bg-orange-500 text-white font-bold px-8 py-4 rounded-2xl shadow-xl shadow-orange-200 flex items-center justify-center gap-2 text-lg"
+              >
+                Download Android App <HiLightningBolt />
+              </a>
             </div>
           </motion.div>
 
