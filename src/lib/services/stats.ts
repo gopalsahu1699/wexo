@@ -30,20 +30,31 @@ export async function getDashboardStats() {
         .eq('user_id', ownerId)
         .eq('status', 'active');
 
-    // 3. Today's Revenue (from finalized invoices)
+    // 3. Today's Revenue (from finalized invoices + direct payment_in)
     const today = new Date().toISOString().split('T')[0];
+    
+    // Invoices
     const { data: invoices } = await supabase
         .from('invoices')
         .select('total_amount')
         .eq('user_id', ownerId)
         .eq('invoice_date', today);
 
-    const dailyRevenue = invoices?.reduce((acc, inv) => acc + (inv.total_amount || 0), 0) || 0;
+    // Direct Cash/UPI Payments In
+    const { data: directPayments } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('user_id', ownerId)
+        .eq('type', 'payment_in')
+        .eq('payment_date', today);
+
+    const invoiceRevenue = invoices?.reduce((acc, inv) => acc + (Number(inv.total_amount) || 0), 0) || 0;
+    const directRevenue = directPayments?.reduce((acc, p) => acc + (Number(p.amount) || 0), 0) || 0;
 
     return {
         jobs: jobsCount || 0,
         workers: workersCount || 0,
-        revenue: dailyRevenue,
+        revenue: invoiceRevenue + directRevenue,
         growth: 0
     };
 }
@@ -121,9 +132,23 @@ export async function getFinanceStats(startDate?: string, endDate?: string) {
     const pureExpenses = expensesData?.reduce((acc, exp) => acc + (exp.amount || 0), 0) || 0;
     const totalPurchases = purchasesData?.reduce((acc, pur) => acc + (pur.total_amount || 0), 0) || 0;
 
+    // 5. Staff Gig Earnings (Verified tasks in period)
+    let tasksQuery = supabase
+        .from('task_assignments')
+        .select('actual_cost, verified_at')
+        .eq('user_id', ownerId)
+        .eq('status', 'verified');
+    
+    if (startDate) tasksQuery = tasksQuery.gte('verified_at', startDate);
+    if (endDate) tasksQuery = tasksQuery.lte('verified_at', endDate);
+
+    const { data: taskData } = await tasksQuery;
+    const totalGigEarnings = taskData?.reduce((acc, t) => acc + (t.actual_cost || 0), 0) || 0;
+
     // Actual Profit Loss Calculation
     const actualIncome = totalRevenue + paymentIn;
-    const actualExpenses = totalPurchases + totalPayroll + pureExpenses + paymentOut;
+    // Expenses = Purchases + Fixed Payroll + Gig Payroll + Utility Expenses + Other Payment Out
+    const actualExpenses = totalPurchases + totalPayroll + totalGigEarnings + pureExpenses + paymentOut;
     const netProfit = actualIncome - actualExpenses;
 
     const growth = actualIncome > 0 ? ((netProfit / actualIncome) * 100).toFixed(1) : 0;
@@ -131,7 +156,8 @@ export async function getFinanceStats(startDate?: string, endDate?: string) {
     return {
         totalRevenue,
         totalPayroll,
-        pendingPayments,
+        pendingPayments, // Invoices not paid
+        pendingStaffPayments: totalGigEarnings, // Verified gigs in period
         totalExpenses: actualExpenses,
         netProfit,
         growth: Number(growth),

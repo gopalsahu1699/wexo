@@ -9,11 +9,13 @@ import {
     HiPhone,
     HiBriefcase,
     HiBadgeCheck,
-    HiUserGroup
+    HiUserGroup,
+    HiArrowRight
 } from "react-icons/hi";
 import { getWorkers } from "@/lib/services/workers";
 import { Worker } from "@/lib/types";
 import { getStaffSession } from "@/lib/services/auth-role";
+import { createClient } from "@/lib/supabase";
 
 export default function WorkersPage() {
     const router = useRouter();
@@ -26,6 +28,16 @@ export default function WorkersPage() {
         loadWorkers();
         const session = getStaffSession();
         if (session) setRole(session.role);
+
+        const supabase = createClient();
+        const channel = supabase
+            .channel('workers-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_members' }, () => loadWorkers())
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     async function loadWorkers() {
@@ -112,50 +124,50 @@ export default function WorkersPage() {
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: i * 0.05 }}
                             onClick={() => router.push(`/dashboard/workForce/${w.id}`)}
-                            className="glass p-8 rounded-[2.5rem] card-3d border border-slate-100 cursor-pointer group"
+                            className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all cursor-pointer group"
                         >
                             <div className="flex items-center justify-between mb-6">
-                                <div className="w-16 h-16 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center text-blue-600 font-black text-xl shadow-inner group-hover:scale-110 transition-transform">
+                                <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 font-black text-lg md:text-xl shadow-inner group-hover:scale-110 transition-transform">
                                     {w.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                                 </div>
-                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${w.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider ${w.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                                     {w.status}
                                 </span>
                             </div>
 
-                            <h3 className="text-2xl font-black text-slate-800 mb-2">{w.name}</h3>
+                            <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2 truncate group-hover:text-blue-600 transition-colors">{w.name}</h3>
                             
-                            <div className="flex items-center gap-2 text-slate-500 font-bold text-sm mb-6">
-                                <HiBriefcase className="text-lg text-blue-500" />
-                                {w.role || "No Role Assigned"}
+                            <div className="flex items-center gap-2 text-slate-500 font-bold text-xs mb-6">
+                                <HiBriefcase className="text-base text-blue-500" />
+                                <span className="truncate">{w.role || "No Role Assigned"}</span>
                             </div>
 
                             <div className="space-y-4 mb-8">
                                 {w.phone && (
-                                    <div className="flex items-center gap-3 text-slate-600 font-bold bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                        <HiPhone className="text-xl text-green-500" /> 
+                                    <div className="flex items-center gap-3 text-slate-600 font-bold bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-100 text-sm">
+                                        <HiPhone className="text-lg text-green-500 shrink-0" /> 
                                         {w.phone}
                                     </div>
                                 )}
                                 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-                                        <p className="text-[10px] font-black text-orange-400 uppercase tracking-wider mb-1">Rating</p>
+                                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                                    <div className="bg-orange-50 p-3 md:p-4 rounded-xl border border-orange-100">
+                                        <p className="text-[9px] font-black text-orange-400 uppercase tracking-wider mb-1">Rating</p>
                                         <div className="flex items-center gap-1">
-                                            <span className="text-lg font-black text-orange-700">{w.rating || "5.0"}</span>
-                                            <HiBadgeCheck className="text-orange-500" />
+                                            <span className="text-base md:text-lg font-black text-orange-700">{w.rating || "5.0"}</span>
+                                            <HiBadgeCheck className="text-orange-500 text-sm md:text-base" />
                                         </div>
                                     </div>
-                                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
-                                        <p className="text-[10px] font-black text-purple-400 uppercase tracking-wider mb-1">
+                                    <div className="bg-purple-50 p-3 md:p-4 rounded-xl border border-purple-100">
+                                        <p className="text-[9px] font-black text-purple-400 uppercase tracking-wider mb-1">
                                             {w.pay_basis === 'daily' ? 'Day Wage' : 'Salary'}
                                         </p>
                                         <div className="flex flex-col">
-                                            <span className="text-lg font-black text-purple-700">
+                                            <span className="text-base md:text-lg font-black text-purple-700">
                                                 ₹{(w.salary || 0).toLocaleString()}
                                             </span>
                                             {w.pay_basis === 'daily' && w.half_day_salary > 0 && (
-                                                <span className="text-[9px] font-bold text-purple-500 italic">
+                                                <span className="text-[8px] font-bold text-purple-500 italic">
                                                     (H.D. ₹{w.half_day_salary.toLocaleString()})
                                                 </span>
                                             )}
@@ -164,9 +176,12 @@ export default function WorkersPage() {
                                 </div>
                             </div>
 
-                            <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
-                                <div className="text-blue-600 font-black text-sm group-hover:translate-x-2 transition-transform">
-                                    View Details →
+                            <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
+                                <div className="text-blue-600 font-black text-xs md:text-sm group-hover:translate-x-2 transition-transform">
+                                    View Profile →
+                                </div>
+                                <div className="w-8 h-8 rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-300 group-hover:border-blue-600 group-hover:text-blue-600 transition-colors">
+                                    <HiArrowRight className="text-xs" />
                                 </div>
                             </div>
                         </motion.div>

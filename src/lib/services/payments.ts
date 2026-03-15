@@ -5,6 +5,7 @@ export interface Payment {
     id: string;
     user_id: string;
     customer_id?: string;
+    staff_id?: string;
     invoice_id?: string;
     payment_number: string;
     payment_date: string;

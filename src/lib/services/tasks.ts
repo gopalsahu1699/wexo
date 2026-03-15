@@ -265,8 +265,8 @@ export async function updateTaskStatus(
 
     const updateData: Record<string, unknown> = { status: newStatus };
 
-    // Default actual_cost to estimated_cost if verifying and not set
-    if (newStatus === "verified" && extras?.actual_cost === undefined && task.actual_cost === null) {
+    // Default actual_cost to estimated_cost if verifying and not set (handle null or 0)
+    if (newStatus === "verified" && extras?.actual_cost === undefined && (!task.actual_cost || Number(task.actual_cost) === 0)) {
         updateData.actual_cost = task.estimated_cost;
     }
 
@@ -464,6 +464,7 @@ export interface TaskStats {
     rejected: number;
     overdue: number;
     totalEarnings: number;
+    paidEarnings: number;
 }
 
 export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'assigned_by', ownerId?: string): Promise<TaskStats> {
@@ -480,7 +481,7 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
     }
 
     if (!currentOwnerId) {
-         return { total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0 };
+         return { total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0, paidEarnings: 0 };
     }
 
     let query = supabase
@@ -497,7 +498,7 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
     const { data, error } = await query;
 
     if (error || !data) {
-        return { total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0 };
+        return { total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0, paidEarnings: 0 };
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -510,7 +511,8 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
         verified: 0,
         rejected: 0,
         overdue: 0,
-        totalEarnings: 0
+        totalEarnings: 0,
+        paidEarnings: 0
     };
 
     data.forEach((task) => {
@@ -521,7 +523,7 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
         else if (s === 'completed') stats.completed++;
         else if (s === 'verified') {
             stats.verified++;
-            stats.totalEarnings += (task.actual_cost || 0);
+            stats.totalEarnings += Number(task.actual_cost || 0);
         }
         else if (s === 'rejected') stats.rejected++;
         
@@ -530,6 +532,18 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
             stats.overdue++;
         }
     });
+
+    // 2. Fetch payments made to this staff to calculate "Paid Balance"
+    if (staffId) {
+        const { data: payments } = await supabase
+            .from('payments')
+            .select('amount')
+            .eq('staff_id', staffId)
+            .eq('type', 'payment_out');
+        
+        const totalPaid = payments?.reduce((acc, p) => acc + (Number(p.amount) || 0), 0) || 0;
+        stats.paidEarnings = totalPaid;
+    }
 
     return stats;
 }

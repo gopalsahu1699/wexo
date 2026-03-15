@@ -17,6 +17,7 @@ import {
 import { getStaffSession, staffLogout } from "@/lib/services/auth-role";
 import { getTasksAssignedTo, getTaskStats, TaskStats } from "@/lib/services/tasks";
 import { TaskAssignment, StaffSession } from "@/lib/types";
+import { createClient } from "@/lib/supabase";
 
 export default function MemberDashboard() {
     const router = useRouter();
@@ -31,7 +32,8 @@ export default function MemberDashboard() {
         verified: 0, 
         rejected: 0, 
         overdue: 0,
-        totalEarnings: 0
+        totalEarnings: 0,
+        paidEarnings: 0
     });
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
@@ -44,6 +46,23 @@ export default function MemberDashboard() {
         }
         setSession(s);
         loadData(s);
+
+        const supabase = createClient();
+        const channel = supabase
+            .channel('member-realtime')
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'task_assignments',
+                filter: `assigned_to=eq.${s.staffId}`
+            }, () => {
+                loadData(s);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [router]);
 
     async function loadData(s: StaffSession) {
@@ -138,10 +157,10 @@ export default function MemberDashboard() {
                                     <div className="flex items-baseline gap-1">
                                         <span className="text-xl font-black text-slate-300">₹</span>
                                         <span className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter">
-                                            {stats.totalEarnings.toLocaleString('en-IN')}
+                                            {(stats.totalEarnings - ((stats as any).paidEarnings || 0)).toLocaleString('en-IN')}
                                         </span>
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Total Lifetime Earnings</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Pending Balance • ₹{stats.totalEarnings.toLocaleString('en-IN')} Lifetime</p>
                                 </div>
                                 
                                 <div className="mt-10 grid grid-cols-2 gap-4">

@@ -14,6 +14,7 @@ import { FaBoxOpen } from "react-icons/fa";
 import { getInventory } from "@/lib/services/inventory";
 import { Product } from "@/lib/types";
 import { getStaffSession } from "@/lib/services/auth-role";
+import { createClient } from "@/lib/supabase";
 
 export default function InventoryPage() {
     const router = useRouter();
@@ -26,6 +27,16 @@ export default function InventoryPage() {
         loadInventory();
         const session = getStaffSession();
         if (session) setRole(session.role);
+
+        const supabase = createClient();
+        const channel = supabase
+            .channel('inventory-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => loadInventory())
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     async function loadInventory() {
@@ -88,70 +99,112 @@ export default function InventoryPage() {
 
             <div className="grid lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 glass rounded-[2.5rem] overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-100">
-                                <th className="p-8 text-sm font-black text-slate-400 uppercase tracking-widest">Item Detail</th>
-                                <th className="p-8 text-sm font-black text-slate-400 uppercase tracking-widest">Stock Level</th>
-                                <th className="p-8 text-sm font-black text-slate-400 uppercase tracking-widest text-right">Unit Price</th>
-                                <th className="p-8"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filteredInventory.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="p-20 text-center">
-                                        <FaBoxOpen className="text-5xl text-slate-300 mx-auto mb-4" />
-                                        <p className="text-slate-400 font-bold">No inventory items found.</p>
-                                    </td>
+                    {/* Desktop View: Table */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-slate-100">
+                                    <th className="p-8 text-sm font-black text-slate-400 uppercase tracking-widest">Item Detail</th>
+                                    <th className="p-8 text-sm font-black text-slate-400 uppercase tracking-widest">Stock Level</th>
+                                    <th className="p-8 text-sm font-black text-slate-400 uppercase tracking-widest text-right">Unit Price</th>
+                                    <th className="p-8"></th>
                                 </tr>
-                            ) : (
-                                filteredInventory.map((item) => {
-                                    const isLow = item.stock_quantity < item.min_stock_level;
-                                    return (
-                                        <motion.tr
-                                            key={item.id}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            onClick={() => router.push(`/dashboard/inventory/${item.id}`)}
-                                            className="hover:bg-slate-50 transition-colors group cursor-pointer"
-                                        >
-                                            <td className="p-8">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 text-xl">
-                                                        <HiInboxIn />
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredInventory.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="p-20 text-center">
+                                            <FaBoxOpen className="text-5xl text-slate-300 mx-auto mb-4" />
+                                            <p className="text-slate-400 font-bold">No inventory items found.</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredInventory.map((item) => {
+                                        const isLow = item.stock_quantity < item.min_stock_level;
+                                        return (
+                                            <motion.tr
+                                                key={item.id}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                onClick={() => router.push(`/dashboard/inventory/${item.id}`)}
+                                                className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                                            >
+                                                <td className="p-8">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 text-xl">
+                                                            <HiInboxIn />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-slate-800">{item.name}</p>
+                                                            <p className="text-slate-500 text-sm font-bold">{item.category || 'Uncategorized'}</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="font-black text-slate-800">{item.name}</p>
-                                                        <p className="text-slate-500 text-sm font-bold">{item.category || 'Uncategorized'}</p>
+                                                </td>
+                                                <td className="p-8">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-32 bg-slate-100 h-2 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full ${isLow ? 'bg-orange-500' : 'bg-green-500'}`}
+                                                                style={{ width: `${Math.min((item.stock_quantity / (item.min_stock_level || 1)) * 50, 100)}%` }}
+                                                            ></div>
+                                                        </div>
+                                                        <span className={`font-black ${isLow ? 'text-orange-600' : 'text-slate-700'}`}>
+                                                            {item.stock_quantity} {item.unit}
+                                                        </span>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-8">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-32 bg-slate-100 h-2 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full ${isLow ? 'bg-orange-500' : 'bg-green-500'}`}
-                                                            style={{ width: `${Math.min((item.stock_quantity / (item.min_stock_level || 1)) * 50, 100)}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <span className={`font-black ${isLow ? 'text-orange-600' : 'text-slate-700'}`}>
-                                                        {item.stock_quantity} {item.unit}
+                                                </td>
+                                                <td className="p-8 text-right font-black text-slate-800">
+                                                    ₹{item.price?.toLocaleString() || '0'}
+                                                </td>
+                                                <td className="p-8 text-right">
+                                                    <HiChevronRight className="text-2xl text-slate-300 group-hover:text-blue-600 transition-all" />
+                                                </td>
+                                            </motion.tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile View: Cards */}
+                    <div className="md:hidden divide-y divide-slate-100 bg-white">
+                        {filteredInventory.length === 0 ? (
+                            <div className="p-20 text-center">
+                                <FaBoxOpen className="text-5xl text-slate-300 mx-auto mb-4" />
+                                <p className="text-slate-400 font-bold">No inventory items found.</p>
+                            </div>
+                        ) : (
+                            filteredInventory.map((item) => {
+                                const isLow = item.stock_quantity < item.min_stock_level;
+                                return (
+                                    <div 
+                                        key={item.id} 
+                                        onClick={() => router.push(`/dashboard/inventory/${item.id}`)}
+                                        className="p-6 active:bg-slate-50 transition-colors flex items-center justify-between"
+                                    >
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shrink-0">
+                                                <HiInboxIn />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-black text-slate-800 truncate">{item.name}</p>
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                                                    {item.category || 'General'} • ₹{item.price?.toLocaleString() || '0'}
+                                                </p>
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${isLow ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+                                                        {item.stock_quantity} {item.unit} in-stock
                                                     </span>
                                                 </div>
-                                            </td>
-                                            <td className="p-8 text-right font-black text-slate-800">
-                                                ₹{item.price?.toLocaleString() || '0'}
-                                            </td>
-                                            <td className="p-8 text-right">
-                                                <HiChevronRight className="text-2xl text-slate-300 group-hover:text-blue-600 transition-all" />
-                                            </td>
-                                        </motion.tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
+                                            </div>
+                                        </div>
+                                        <HiChevronRight className="text-xl text-slate-300" />
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
                 </div>
 
                 <div className="space-y-8">
