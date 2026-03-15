@@ -35,14 +35,29 @@ export default function ManagerDashboard() {
     async function loadData(s: StaffSession) {
         setLoading(true);
         try {
-            const [myTasksData, teamTasksData, statsData] = await Promise.all([
+            const [myTasksData, teamTasksData, myStats] = await Promise.all([
                 getTasksAssignedTo(s.staffId, s.ownerId),
                 getTeamTasksForManager(s.staffId, s.ownerId),
                 getTaskStats(s.staffId, 'assigned_to', s.ownerId)
             ]);
             setMyTasks(myTasksData);
             setTeamTasks(teamTasksData);
-            setStats(statsData);
+
+            // Combine stats: manager's own tasks + team tasks summary
+            const teamPending = teamTasksData.filter(t => t.status === 'pending').length;
+            const teamInProgress = teamTasksData.filter(t => ['accepted', 'in_progress'].includes(t.status)).length;
+            const teamCompleted = teamTasksData.filter(t => ['completed', 'verified'].includes(t.status)).length;
+            const today = new Date().toISOString().split('T')[0];
+            const teamOverdue = teamTasksData.filter(t => t.deadline && t.deadline < today && !['completed', 'verified', 'rejected'].includes(t.status)).length;
+
+            setStats({
+                ...myStats,
+                total: myStats.total + teamTasksData.length,
+                pending: myStats.pending + teamPending,
+                in_progress: myStats.in_progress + teamInProgress,
+                completed: myStats.completed + teamCompleted,
+                overdue: myStats.overdue + teamOverdue,
+            });
         } catch (err) {
             console.error("Error loading manager data:", err);
         } finally {

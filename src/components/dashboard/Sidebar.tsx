@@ -16,8 +16,6 @@ import {
     HiX,
     HiHome,
     HiLightningBolt,
-    HiStar,
-    HiCreditCard,
     HiOutlineClipboardCheck
 } from "react-icons/hi";
 import { clsx, type ClassValue } from "clsx";
@@ -69,15 +67,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
             { name: "Operations", href: "/dashboard/manager", icon: HiHome },
             { name: "Team Tasks", href: "/dashboard/tasks", icon: HiClipboardList },
             { name: "Staff Attendance", href: "/dashboard/workForce", icon: HiUsers },
+            { name: "My Attendance", href: "/dashboard/workForce/attendance", icon: HiOutlineClipboardCheck },
             { name: "Inventory Check", href: "/dashboard/inventory", icon: HiCube },
             { name: "Customers List", href: "/dashboard/customers", icon: HiUserGroup },
             { name: "Settings", href: "/dashboard/settings", icon: HiCog },
         ],
         team_member: [
             { name: "Available Gigs", href: "/dashboard/member", icon: HiLightningBolt },
-            { name: "My Wallet", href: "#", icon: HiCreditCard },
-            { name: "Completed", href: "#", icon: HiOutlineClipboardCheck },
-            { name: "Ratings", href: "#", icon: HiStar },
+            { name: "My Attendance", href: "/dashboard/workForce/attendance", icon: HiOutlineClipboardCheck },
             { name: "Profile Settings", href: "/dashboard/settings", icon: HiCog },
         ]
     };

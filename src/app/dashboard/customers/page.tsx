@@ -13,15 +13,19 @@ import {
 } from "react-icons/hi";
 import { getCustomers } from "@/lib/services/customers";
 import { Customer } from "@/lib/types";
+import { getStaffSession } from "@/lib/services/auth-role";
 
 export default function CustomersPage() {
     const router = useRouter();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
         loadCustomers();
+        const session = getStaffSession();
+        if (session) setRole(session.role);
     }, []);
 
     async function loadCustomers() {
@@ -74,12 +78,14 @@ export default function CustomersPage() {
                             className="w-full bg-white border border-slate-100 rounded-2xl py-4 pl-12 pr-4 font-medium focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
                         />
                     </div>
-                    <button
-                        onClick={() => router.push("/dashboard/customers/new")}
-                        className="btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors"
-                    >
-                        <HiPlus className="text-xl" /> Add New
-                    </button>
+                    {role !== 'team_member' && (
+                        <button
+                            onClick={() => router.push("/dashboard/customers/new")}
+                            className="btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors"
+                        >
+                            <HiPlus className="text-xl" /> Add New
+                        </button>
+                    )}
                 </div>
             </div>
 

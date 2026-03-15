@@ -196,3 +196,18 @@ export async function getTeamMembersByManager(managerId: string): Promise<Worker
     }
     return data || [];
 }
+
+export async function updateStaffMember(staffId: string, data: { name?: string }): Promise<boolean> {
+    const supabase = createClient();
+    const { error } = await supabase
+        .from("staff_members")
+        .update(data)
+        .eq("id", staffId);
+
+    if (error) {
+        console.error("Error updating staff member:", error);
+        return false;
+    }
+    return true;
+}
+

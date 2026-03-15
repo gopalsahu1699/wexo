@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { HiArrowLeft, HiTrash, HiSave } from "react-icons/hi";
 import { getProduct, addProduct, updateProduct, deleteProduct } from "@/lib/services/inventory";
+import { getStaffSession } from "@/lib/services/auth-role";
 import { Product } from "@/lib/types";
 import { use } from "react";
 
@@ -25,8 +26,11 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         price: 0,
         purchase_price: 0,
     });
+    const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
+        const session = getStaffSession();
+        if (session) setRole(session.role);
         if (!isNew) {
             loadProduct();
         }
@@ -190,15 +194,17 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 mt-10 pt-8 border-t border-slate-100">
-                    <button
-                        onClick={handleSave}
-                        disabled={saving || !product.name.trim()}
-                        className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        <HiSave className="text-xl" />
-                        {saving ? "Saving..." : "Save Item"}
-                    </button>
-                    {!isNew && (
+                    {role !== 'team_member' && (
+                        <button
+                            onClick={handleSave}
+                            disabled={saving || !product.name.trim()}
+                            className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            <HiSave className="text-xl" />
+                            {saving ? "Saving..." : "Save Item"}
+                        </button>
+                    )}
+                    {!isNew && !role && (
                         <button
                             onClick={handleDelete}
                             disabled={saving}

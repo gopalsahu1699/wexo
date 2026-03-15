@@ -7,8 +7,12 @@ import { getFinanceStats } from "@/lib/services/stats";
 import { getWorkers } from "@/lib/services/workers";
 import { getPayments, addPayment, Payment } from "@/lib/services/payments";
 import { Worker } from "@/lib/types";
+import { getCurrentUser, UserType } from "@/lib/services/auth-role";
+import { useRouter } from "next/navigation";
 
 export default function FinancePage() {
+    const router = useRouter();
+    const [userType, setUserType] = useState<UserType>({ type: "none" });
     const [stats, setStats] = useState({ 
         totalRevenue: 0, 
         totalPayroll: 0, 
@@ -33,9 +37,16 @@ export default function FinancePage() {
     const [newPayment, setNewPayment] = useState({ amount: "", notes: "", mode: "cash" as any });
 
     useEffect(() => {
-        const controller = new AbortController();
-        loadFinanceData();
-        return () => controller.abort();
+        async function checkRole() {
+            const user = await getCurrentUser();
+            if (user.type !== 'admin') {
+                router.push('/dashboard');
+                return;
+            }
+            setUserType(user);
+            loadFinanceData();
+        }
+        checkRole();
     }, [filterPeriod, selectedMonth, selectedYear]);
 
     async function loadFinanceData() {

@@ -13,15 +13,19 @@ import {
 import { FaBoxOpen } from "react-icons/fa";
 import { getInventory } from "@/lib/services/inventory";
 import { Product } from "@/lib/types";
+import { getStaffSession } from "@/lib/services/auth-role";
 
 export default function InventoryPage() {
     const router = useRouter();
     const [inventory, setInventory] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
         loadInventory();
+        const session = getStaffSession();
+        if (session) setRole(session.role);
     }, []);
 
     async function loadInventory() {
@@ -66,15 +70,19 @@ export default function InventoryPage() {
                 </div>
 
                 <div className="flex gap-4">
-                    <button className="btn-3d bg-white text-slate-800 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-all">
-                        <HiInboxIn className="text-xl text-green-600" /> Stock In
-                    </button>
-                    <button
-                        onClick={() => router.push("/dashboard/inventory/new")}
-                        className="btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors"
-                    >
-                        <HiPlus className="text-xl" /> Add New Item
-                    </button>
+                    {role !== 'team_member' && (
+                        <>
+                            <button className="btn-3d bg-white text-slate-800 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-all">
+                                <HiInboxIn className="text-xl text-green-600" /> Stock In
+                            </button>
+                            <button
+                                onClick={() => router.push("/dashboard/inventory/new")}
+                                className="btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors"
+                            >
+                                <HiPlus className="text-xl" /> Add New Item
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 

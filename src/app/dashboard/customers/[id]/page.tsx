@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { HiArrowLeft, HiTrash, HiSave } from "react-icons/hi";
 import { getCustomer, addCustomer, updateCustomer, deleteCustomer } from "@/lib/services/customers";
+import { getStaffSession } from "@/lib/services/auth-role";
 import { use } from "react";
 
 export default function CustomerDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,8 +23,11 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
         billing_address: "",
         type: "customer" as "customer" | "supplier" | "both",
     });
+    const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
+        const session = getStaffSession();
+        if (session) setRole(session.role);
         if (!isNew) {
             loadCustomer();
         }
@@ -173,15 +177,17 @@ export default function CustomerDetailsPage({ params }: { params: Promise<{ id: 
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 mt-10 pt-8 border-t border-slate-100">
-                    <button
-                        onClick={handleSave}
-                        disabled={saving || !customer.name.trim()}
-                        className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        <HiSave className="text-xl" />
-                        {saving ? "Saving..." : "Save Customer"}
-                    </button>
-                    {!isNew && (
+                    {role !== 'team_member' && (
+                        <button
+                            onClick={handleSave}
+                            disabled={saving || !customer.name.trim()}
+                            className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            <HiSave className="text-xl" />
+                            {saving ? "Saving..." : "Save Customer"}
+                        </button>
+                    )}
+                    {!isNew && !role && (
                         <button
                             onClick={handleDelete}
                             disabled={saving}

@@ -249,10 +249,10 @@ export async function updateTaskStatus(
 ): Promise<boolean> {
     const supabase = createClient();
 
-    // Get old status and user_id for logging
+    // Get old status, user_id, and estimated_cost for logic/logging
     let query = supabase
         .from("task_assignments")
-        .select("status, user_id")
+        .select("status, user_id, estimated_cost, actual_cost")
         .eq("id", taskId);
     
     if (extras?.ownerId) {
@@ -264,6 +264,11 @@ export async function updateTaskStatus(
     if (!task) return false;
 
     const updateData: Record<string, unknown> = { status: newStatus };
+
+    // Default actual_cost to estimated_cost if verifying and not set
+    if (newStatus === "verified" && extras?.actual_cost === undefined && task.actual_cost === null) {
+        updateData.actual_cost = task.estimated_cost;
+    }
 
     // Add timestamps based on status
     if (newStatus === "in_progress") updateData.started_at = new Date().toISOString();
@@ -495,7 +500,6 @@ export async function getTaskStats(staffId?: string, role?: 'assigned_to' | 'ass
         return { total: 0, pending: 0, accepted: 0, in_progress: 0, completed: 0, verified: 0, rejected: 0, overdue: 0, totalEarnings: 0 };
     }
 
-    console.log(`[TASK_DEBUG] Stats query returned ${data.length} records`);
     const today = new Date().toISOString().split('T')[0];
     const stats: TaskStats = {
         total: data.length,

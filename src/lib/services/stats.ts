@@ -1,21 +1,33 @@
 import { createClient } from "@/lib/supabase";
+import { getStaffSession } from "./auth-role";
+
+async function getOwnerId(): Promise<string | null> {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) return user.id;
+
+    const staff = getStaffSession();
+    if (staff) return staff.ownerId;
+
+    return null;
+}
 
 export async function getDashboardStats() {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { jobs: 0, workers: 0, revenue: 0, growth: 0 };
+    const ownerId = await getOwnerId();
+    if (!ownerId) return { jobs: 0, workers: 0, revenue: 0, growth: 0 };
 
     // 1. Total Jobs
     const { count: jobsCount } = await supabase
         .from('jobs')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', ownerId);
 
     // 2. Total Workers
     const { count: workersCount } = await supabase
         .from('staff_members')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .eq('status', 'active');
 
     // 3. Today's Revenue (from finalized invoices)
@@ -23,7 +35,7 @@ export async function getDashboardStats() {
     const { data: invoices } = await supabase
         .from('invoices')
         .select('total_amount')
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .eq('invoice_date', today);
 
     const dailyRevenue = invoices?.reduce((acc, inv) => acc + (inv.total_amount || 0), 0) || 0;
@@ -38,8 +50,8 @@ export async function getDashboardStats() {
 
 export async function getFinanceStats(startDate?: string, endDate?: string) {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { 
+    const ownerId = await getOwnerId();
+    if (!ownerId) return { 
         totalRevenue: 0, 
         totalPayroll: 0, 
         pendingPayments: 0, 
@@ -54,7 +66,7 @@ export async function getFinanceStats(startDate?: string, endDate?: string) {
     let revenueQuery = supabase
         .from('invoices')
         .select('total_amount, status, invoice_date')
-        .eq('user_id', user.id);
+        .eq('user_id', ownerId);
 
     if (startDate) revenueQuery = revenueQuery.gte('invoice_date', startDate);
     if (endDate) revenueQuery = revenueQuery.lte('invoice_date', endDate);
@@ -68,7 +80,7 @@ export async function getFinanceStats(startDate?: string, endDate?: string) {
     let paymentsQuery = supabase
         .from('payments')
         .select('amount, type, payment_date')
-        .eq('user_id', user.id);
+        .eq('user_id', ownerId);
 
     if (startDate) paymentsQuery = paymentsQuery.gte('payment_date', startDate);
     if (endDate) paymentsQuery = paymentsQuery.lte('payment_date', endDate);
@@ -79,11 +91,10 @@ export async function getFinanceStats(startDate?: string, endDate?: string) {
     const paymentOut = payments?.filter(p => p.type === 'payment_out').reduce((acc, p) => acc + (p.amount || 0), 0) || 0;
 
     // 3. Total Payroll (Current active staff salaries)
-    // Note: Staff salary is a standard monthly liability, but we can filter attendance-based wages in the future
     const { data: staff } = await supabase
         .from('staff_members')
         .select('salary')
-        .eq('user_id', user.id);
+        .eq('user_id', ownerId);
 
     const totalPayroll = staff?.reduce((acc, s) => acc + (s.salary || 0), 0) || 0;
 
@@ -91,16 +102,15 @@ export async function getFinanceStats(startDate?: string, endDate?: string) {
     let expensesQuery = supabase
         .from('expenses')
         .select('amount, created_at')
-        .eq('user_id', user.id);
+        .eq('user_id', ownerId);
     
-    // Expenses usually have created_at as timestamp
     if (startDate) expensesQuery = expensesQuery.gte('created_at', startDate);
     if (endDate) expensesQuery = expensesQuery.lte('created_at', endDate);
 
     let purchasesQuery = supabase
         .from('purchases')
         .select('total_amount, purchase_date')
-        .eq('user_id', user.id);
+        .eq('user_id', ownerId);
 
     if (startDate) purchasesQuery = purchasesQuery.gte('purchase_date', startDate);
     if (endDate) purchasesQuery = purchasesQuery.lte('purchase_date', endDate);

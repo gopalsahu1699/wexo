@@ -13,15 +13,19 @@ import {
 } from "react-icons/hi";
 import { getWorkers } from "@/lib/services/workers";
 import { Worker } from "@/lib/types";
+import { getStaffSession } from "@/lib/services/auth-role";
 
 export default function WorkersPage() {
     const router = useRouter();
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
         loadWorkers();
+        const session = getStaffSession();
+        if (session) setRole(session.role);
     }, []);
 
     async function loadWorkers() {
@@ -81,12 +85,14 @@ export default function WorkersPage() {
                         >
                             <HiBadgeCheck className="text-xl text-blue-600" /> Attendance
                         </button>
-                        <button
-                            onClick={() => router.push("/dashboard/workForce/new")}
-                            className="flex-1 md:flex-none btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors text-sm"
-                        >
-                            <HiPlus className="text-xl" /> Add New
-                        </button>
+                        {role !== 'team_member' && (
+                            <button
+                                onClick={() => router.push("/dashboard/workForce/new")}
+                                className="flex-1 md:flex-none btn-3d bg-blue-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-blue-200 hover:bg-blue-700 transition-colors text-sm"
+                            >
+                                <HiPlus className="text-xl" /> Add New
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

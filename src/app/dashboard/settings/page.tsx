@@ -18,7 +18,7 @@ import {
     HiMail
 } from "react-icons/hi";
 import { createClient } from "@/lib/supabase";
-import { getCurrentUser, UserType, staffLogout } from "@/lib/services/auth-role";
+import { getCurrentUser, UserType, staffLogout, updateStaffMember } from "@/lib/services/auth-role";
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -84,9 +84,13 @@ export default function SettingsPage() {
                     }
                 });
                 if (error) throw error;
-            } else {
-                // Mock staff update
-                await new Promise(r => setTimeout(r, 800));
+            } else if (userType.type === "staff") {
+                const success = await updateStaffMember(userType.session.staffId, { name: fullName });
+                if (!success) throw new Error("Failed to update profile");
+                
+                // Update local session name
+                const newSession = { ...userType.session, staffName: fullName };
+                localStorage.setItem("wexo-staff-session", JSON.stringify(newSession));
             }
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
@@ -149,24 +153,24 @@ export default function SettingsPage() {
                     <section className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
                         <p className="px-6 pt-6 pb-2 text-[10px] uppercase font-black text-slate-400 tracking-widest">Preferences</p>
                         <div className="divide-y divide-slate-50">
-                            <button className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                                <span className="flex items-center gap-3 font-bold text-slate-700 text-sm">
-                                    <HiBell className="text-xl text-blue-500" /> Notifications
-                                </span>
-                                <HiChevronRight className="text-slate-300" />
-                            </button>
-                            <button className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                                <span className="flex items-center gap-3 font-bold text-slate-700 text-sm">
-                                    <HiCreditCard className="text-xl text-emerald-500" /> Payment Info
-                                </span>
-                                <HiChevronRight className="text-slate-300" />
-                            </button>
-                            <button className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                                <span className="flex items-center gap-3 font-bold text-slate-700 text-sm">
-                                    <HiSupport className="text-xl text-purple-500" /> Help Support
-                                </span>
-                                <HiChevronRight className="text-slate-300" />
-                            </button>
+                            <div className="px-6 py-5 space-y-4">
+                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Notification Alerts</p>
+                                {notifications.filter(n => n.role.includes('team_member')).map((n, i) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                        <span className="font-bold text-slate-700 text-sm">{n.label}</span>
+                                        <div 
+                                            onClick={() => {
+                                                setNotifications(prev => prev.map((item, idx) => 
+                                                    idx === notifications.indexOf(n) ? { ...item, enabled: !item.enabled } : item
+                                                ));
+                                            }}
+                                            className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${n.enabled ? 'bg-slate-900' : 'bg-slate-200'}`}
+                                        >
+                                            <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${n.enabled ? 'right-0.5' : 'left-0.5'}`} />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </section>
 
@@ -254,7 +258,14 @@ export default function SettingsPage() {
                             {notifications.filter(n => n.role.includes(userType.type === 'admin' ? 'admin' : 'manager')).map((n, i) => (
                                 <div key={i} className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-slate-100/50 group hover:bg-white transition-colors">
                                     <span className="font-black text-slate-700 text-xs uppercase tracking-wide">{n.label}</span>
-                                    <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${n.enabled ? 'bg-slate-900' : 'bg-slate-200'}`}>
+                                    <div 
+                                        onClick={() => {
+                                            setNotifications(prev => prev.map((item, idx) => 
+                                                idx === notifications.indexOf(n) ? { ...item, enabled: !item.enabled } : item
+                                            ));
+                                        }}
+                                        className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${n.enabled ? 'bg-slate-900' : 'bg-slate-200'}`}
+                                    >
                                         <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${n.enabled ? 'right-1' : 'left-1'}`} />
                                     </div>
                                 </div>
