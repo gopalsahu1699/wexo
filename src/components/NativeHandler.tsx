@@ -18,11 +18,19 @@ export default function NativeHandler() {
             initializeNativeFeatures();
             
             // Handle Deep Linking for OAuth
-            App.addListener('appUrlOpen', (data) => {
+            App.addListener('appUrlOpen', async (data) => {
                 console.log('App opened with URL:', data.url);
                 
                 // For Supabase OAuth: com.wexo.app://auth/callback
                 if (data.url.includes('auth/callback')) {
+                    // Close the in-app browser if it's open
+                    try {
+                        const { Browser } = await import('@capacitor/browser');
+                        await Browser.close();
+                    } catch (e) {
+                        console.error('Error closing browser:', e);
+                    }
+
                     const url = new URL(data.url.replace('com.wexo.app://', 'https://'));
                     
                     // 1. Handle PKCE Flow (Preferred)

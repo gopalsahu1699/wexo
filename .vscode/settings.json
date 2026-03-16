@@ -1,6 +1,9 @@
 {
   "css.lint.unknownAtRules": "ignore",
   "scss.lint.unknownAtRules": "ignore",
+  "css.customData": [
+    ".vscode/tailwind-data.json"
+  ],
   "css.lint.unknownProperties": "ignore",
   "css.validate": false,
   "less.validate": false,
@@ -9,9 +12,13 @@
   "java.import.gradle.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
   "java.configuration.runtimes": [
     {
-      "name": "JavaSE-17",
+      "name": "JavaSE-21",
       "path": "C:\\Program Files\\Android\\Android Studio\\jbr",
       "default": true
+    },
+    {
+      "name": "JavaSE-17",
+      "path": "C:\\Program Files\\Android\\Android Studio\\jbr"
     }
   ]
 }

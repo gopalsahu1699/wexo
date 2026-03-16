@@ -38,14 +38,16 @@ export default function LoginPage() {
         setGoogleLoading(true);
         setError(null);
         try {
-            const redirectTo = isNative() 
+            const isNativeApp = isNative();
+            const redirectTo = isNativeApp 
                 ? 'com.wexo.app://auth/callback' 
                 : `${window.location.origin}/auth/callback`;
 
-            const { error: authError } = await supabase.auth.signInWithOAuth({
+            const { data, error: authError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo,
+                    skipBrowserRedirect: isNativeApp,
                     queryParams: {
                         prompt: 'select_account',
                     },
@@ -53,6 +55,11 @@ export default function LoginPage() {
             });
 
             if (authError) throw authError;
+
+            if (isNativeApp && data?.url) {
+                const { Browser } = await import('@capacitor/browser');
+                await Browser.open({ url: data.url, windowName: '_self' });
+            }
         } catch (err: any) {
             setError(err.message || "Failed to sign in with Google");
             setGoogleLoading(false);
