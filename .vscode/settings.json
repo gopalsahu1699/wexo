@@ -1,0 +1,17 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "css.lint.unknownProperties": "ignore",
+  "css.validate": false,
+  "less.validate": false,
+  "scss.validate": false,
+  "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.import.gradle.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-17",
+      "path": "C:\\Program Files\\Android\\Android Studio\\jbr",
+      "default": true
+    }
+  ]
+}

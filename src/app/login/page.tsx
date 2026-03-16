@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { HiMail, HiLockClosed, HiArrowRight } from "react-icons/hi";
 import { FcGoogle } from "react-icons/fc";
 import { createClient } from "@/lib/supabase";
+import { isNative } from "@/lib/services/mobile";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -37,10 +38,14 @@ export default function LoginPage() {
         setGoogleLoading(true);
         setError(null);
         try {
+            const redirectTo = isNative() 
+                ? 'com.wexo.app://auth/callback' 
+                : `${window.location.origin}/auth/callback`;
+
             const { error: authError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/auth/callback`,
+                    redirectTo,
                     queryParams: {
                         prompt: 'select_account',
                     },
